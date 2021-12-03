@@ -9,7 +9,7 @@ extern "C" {
 %option yylineno
 
 comment1 "//"[^\n]*
-comment2 /\*([^\"\*]*|\**\"[^\"]*\"|\*+[^\"/\*])*\**\*/
+comment2 "/*"([^\*]|(\*)*[^\*/])*(\*)*"*/"
 space [ \t]
 newline [\r\n]
 digit10 [0-9]
@@ -38,6 +38,7 @@ return                             {return RETURN;}
 "&&"                               {return AND;}
 "||"                               {return OR;}
 "=="                               {return EQ;}
+"!="                               {return NEQ;}
 ">="                               {return GEQ;}
 "<="                               {return LEQ;}
 {identifier}                       {return IDENT;}
