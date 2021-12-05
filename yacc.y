@@ -1,9 +1,13 @@
 %{
 #include "utils.hpp"
-void yyerror(const char *msg) {
-    printf("Error at line %d:\n\t\t%s\n", yylineno, msg);
-    exit(1);
+vector<string> mycode;
+void emit(string s) {
+  mycode.push_back(s);
 }
+void emitLabel(int label_num) {
+  emit("l" + to_string(label_num) + ":");
+}
+Parser parser;
 %}
 
 %token INT CONST VOID
@@ -27,7 +31,10 @@ ConstDecl       : CONST INT ConstDefs ';'
 ConstDefs       : ConstDefs ',' ConstDef
                 | ConstDef
                 ;
-ConstDef        : IDENT ConstExps '=' ConstInitVal
+ConstDef        : IDENT ConstExps {
+                    $$ = new Variable(true);
+                    parser.top->putVar(*(string *) $1, (Variable *)$$);
+                  } '=' ConstInitVal
                 ;
 ConstExps       : ConstExps '[' ConstExp ']'
                 |
@@ -44,8 +51,14 @@ VarDecl         : INT VarDefs ';'
 VarDefs         : VarDefs ',' VarDef
                 | VarDef
                 ;
-VarDef          : IDENT ConstExps
-                | IDENT ConstExps '=' InitVal
+VarDef          : IDENT ConstExps {
+                    $$ = new Variable(false);
+                    parser.top->putVar(*(string *) $1, (Variable *)$$);
+                  }
+                | IDENT ConstExps {
+                    $$ = new Variable(false);
+                    parser.top->putVar(*(string *) $1, (Variable *)$$);
+                  }'=' InitVal
                 ;
 InitVal         : Exp
                 | '{' InitVals '}'
@@ -75,7 +88,9 @@ BlockItems      : BlockItems BlockItem
 BlockItem       : Decl 
                 | Stmt
                 ;
-Stmt            : LVal '=' Exp ';'
+Stmt            : LVal '=' Exp ';' {
+                    emit(((Variable *)$1)->getname() + "=" + ((Variable *)$3)->getname());
+                  }
                 | Exp ';'
                 | ';'
                 | Block
@@ -88,61 +103,177 @@ Stmt            : LVal '=' Exp ';'
                 | RETURN ';'
                 ;
 
-Exp             : AddExp
+Exp             : AddExp { $$ = $1; }
                 ;
-Cond            : LOrExp
+Cond            : LOrExp { $$ = $1; /* TODO only get true label here, false label need to be generated upper level. */}
                 ;
 LVal            : IDENT Exps
                 ;
 Exps            : Exps '[' Exp ']'
                 |
                 ;
-PrimaryExp      : '(' Exp ')'
-                | LVal
-                | Number
+PrimaryExp      : '(' Exp ')' { $$ = $2; }
+                | LVal {
+                    $$ = $1; // TODO: array condition
+                  }
+                | Number { $$ = $1; }
                 ;
-Number          : INT_CONST
+Number          : INT_CONST {
+                    $$ = new Variable(*(int *)$1);
+                  }
                 ;
 UnaryExp        : PrimaryExp
                 | IDENT '(' ')'
                 | IDENT '(' FuncRParams ')'
-                | UnaryOp UnaryExp
-                ;
-UnaryOp         : '+'
-                | '-'
-                | '!'
+                | '+' UnaryExp { $$ = $2; }
+                | '-' UnaryExp {
+                    if (((Variable *)$2)->checkConst()) {
+                      $$ = new Variable(-((Variable *)$2)->value);
+                    } else {
+                      $$ = new Variable(false);
+                      emit(((Variable *)$$)->getname() + "=-" + ((Variable *)$2)->getname());
+                    }
+                  }
+                | '!' UnaryExp {
+                    if (((Variable *)$2)->checkConst()) {
+                      $$ = new Variable(!((Variable *)$2)->value);
+                    } else {
+                      $$ = new Variable(false);
+                      emit(((Variable *)$$)->getname() + "=!" + ((Variable *)$2)->getname());
+                    }
+                  }
                 ;
 FuncRParams     : FuncRParams ',' Exp
                 | Exp
                 ;
-MulExp          : UnaryExp
-                | MulExp '*' UnaryExp
-                | MulExp '/' UnaryExp
-                | MulExp '%' UnaryExp
+MulExp          : UnaryExp { $$ = $1; }
+                | MulExp '*' UnaryExp {
+                    if (((Variable *)$1)->checkConst() && ((Variable *)$3)->checkConst()) {
+                      $$ = new Variable(((Variable *)$1)->value * ((Variable *)$3)->value);
+                    } else {
+                      $$ = new Variable(false);
+                      emit(((Variable *)$$)->getname() + "=" + ((Variable *)$1)->getname() + "*" + ((Variable *)$3)->getname());
+                    }
+                  }
+                | MulExp '/' UnaryExp {
+                    if (((Variable *)$1)->checkConst() && ((Variable *)$3)->checkConst()) {
+                      $$ = new Variable(((Variable *)$1)->value / ((Variable *)$3)->value);
+                    } else {
+                      $$ = new Variable(false);
+                      emit(((Variable *)$$)->getname() + "=" + ((Variable *)$1)->getname() + "/" + ((Variable *)$3)->getname());
+                    }
+                  }
+                | MulExp '%' UnaryExp {
+                    if (((Variable *)$1)->checkConst() && ((Variable *)$3)->checkConst()) {
+                      $$ = new Variable(((Variable *)$1)->value % ((Variable *)$3)->value);
+                    } else {
+                      $$ = new Variable(false);
+                      emit(((Variable *)$$)->getname() + "=" + ((Variable *)$1)->getname() + "%" + ((Variable *)$3)->getname());
+                    }
+                  }
                 ;
-AddExp          : MulExp
-                | AddExp '+' MulExp
-                | AddExp '-' MulExp
+AddExp          : MulExp { $$ = $1; }
+                | AddExp '+' MulExp {
+                    if (((Variable *)$1)->checkConst() && ((Variable *)$3)->checkConst()) {
+                      $$ = new Variable(((Variable *)$1)->value + ((Variable *)$3)->value);
+                    } else {
+                      $$ = new Variable(false);
+                      emit(((Variable *)$$)->getname() + "=" + ((Variable *)$1)->getname() + "+" + ((Variable *)$3)->getname());
+                    }
+                  }
+                | AddExp '-' MulExp {
+                    if (((Variable *)$1)->checkConst() && ((Variable *)$3)->checkConst()) {
+                      $$ = new Variable(((Variable *)$1)->value - ((Variable *)$3)->value);
+                    } else {
+                      $$ = new Variable(false);
+                      emit(((Variable *)$$)->getname() + "=" + ((Variable *)$1)->getname() + "-" + ((Variable *)$3)->getname());
+                    }
+                  }
                 ;
-RelExp          : AddExp
-                | RelExp '<' AddExp
-                | RelExp '>' AddExp
-                | RelExp LEQ AddExp
-                | RelExp GEQ AddExp
+RelExp          : AddExp { $$ = $1; }
+                | RelExp '<' AddExp {
+                    if (((Variable *)$1)->checkConst() && ((Variable *)$3)->checkConst()) {
+                      int t = (int)(((Variable *)$1)->value < ((Variable *)$3)->value);
+                      $$ = new Variable(t);
+                    } else {
+                      $$ = new Variable(false);
+                      emit(((Variable *)$$)->getname() + "=" + ((Variable *)$1)->getname() + "<" + ((Variable *)$3)->getname());
+                    }
+                  }
+                | RelExp '>' AddExp {
+                    if (((Variable *)$1)->checkConst() && ((Variable *)$3)->checkConst()) {
+                      int t = (int)(((Variable *)$1)->value > ((Variable *)$3)->value);
+                      $$ = new Variable(t);
+                    } else {
+                      $$ = new Variable(false);
+                      emit(((Variable *)$$)->getname() + "=" + ((Variable *)$1)->getname() + ">" + ((Variable *)$3)->getname());
+                    }
+                  }
+                | RelExp LEQ AddExp {
+                    if (((Variable *)$1)->checkConst() && ((Variable *)$3)->checkConst()) {
+                      int t = (int)(((Variable *)$1)->value <= ((Variable *)$3)->value);
+                      $$ = new Variable(t);
+                    } else {
+                      $$ = new Variable(false);
+                      emit(((Variable *)$$)->getname() + "=" + ((Variable *)$1)->getname() + "<=" + ((Variable *)$3)->getname());
+                    }
+                  }
+                | RelExp GEQ AddExp {
+                    if (((Variable *)$1)->checkConst() && ((Variable *)$3)->checkConst()) {
+                      int t = (int)(((Variable *)$1)->value >= ((Variable *)$3)->value);
+                      $$ = new Variable(t);
+                    } else {
+                      $$ = new Variable(false);
+                      emit(((Variable *)$$)->getname() + "=" + ((Variable *)$1)->getname() + ">=" + ((Variable *)$3)->getname());
+                    }
+                  }
                 ;
-EqExp           : RelExp
-                | EqExp EQ RelExp
-                | EqExp NEQ RelExp
+EqExp           : RelExp { $$ = $1; }
+                | EqExp EQ RelExp {
+                    if (((Variable *)$1)->checkConst() && ((Variable *)$3)->checkConst()) {
+                      int t = (int)(((Variable *)$1)->value == ((Variable *)$3)->value);
+                      $$ = new Variable(t);
+                    } else {
+                      $$ = new Variable(false);
+                      emit(((Variable *)$$)->getname() + "=" + ((Variable *)$1)->getname() + "==" + ((Variable *)$3)->getname());
+                    }
+                  }
+                | EqExp NEQ RelExp {
+                    if (((Variable *)$1)->checkConst() && ((Variable *)$3)->checkConst()) {
+                      int t = (int)(((Variable *)$1)->value != ((Variable *)$3)->value);
+                      $$ = new Variable(t);
+                    } else {
+                      $$ = new Variable(false);
+                      emit(((Variable *)$$)->getname() + "=" + ((Variable *)$1)->getname() + "!=" + ((Variable *)$3)->getname());
+                    }
+                  }
                 ;
-LAndExp         : EqExp
-                | LAndExp AND EqExp
+LAndExp         : EqExp {
+                    int cur_label_num = genLabel();
+                    $$ = new int(cur_label_num); // For And expression, store false label here.
+                    emit("if " + ((Variable *)$1)->getname() + "==0 goto l" + to_string(cur_label_num));
+                  }
+                | LAndExp AND EqExp {
+                    $$ = $1;
+                    emit("if " + ((Variable *)$3)->getname() + "==0 goto l" + to_string(*(int *)$$));
+                  }
                 ;
-LOrExp          : LAndExp
-                | LOrExp OR LAndExp
+LOrExp          : LAndExp {
+                    int cur_label_num = genLabel();
+                    $$ = new int(cur_label_num); // For Or expression, store true label here.
+                    emit("goto l" + to_string(cur_label_num));
+                    emitLabel(*(int *)$1); // false label
+                  }
+                | LOrExp OR LAndExp {
+                    $$ = $1;
+                    emit("goto l" + to_string(*(int *)$$));
+                    emitLabel(*(int *)$3); // false label
+                  }
                 ;
-ConstExp        : AddExp
+ConstExp        : AddExp {
+                    assert(((Variable *)$1)->checkConst());
+                    $$ = $1;
+                  }
                 ;
-
-
 
 %%

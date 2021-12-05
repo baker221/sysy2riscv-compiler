@@ -1,4 +1,6 @@
-
+*.yy.*
+*.tab.*
+test/*
 # Created by https://www.toptal.com/developers/gitignore/api/macos,linux,windows,python,c,c++,visualstudiocode,pycharm,clion
 # Edit at https://www.toptal.com/developers/gitignore?templates=macos,linux,windows,python,c,c++,visualstudiocode,pycharm,clion
 
@@ -436,7 +438,6 @@ cython_debug/
 
 ### VisualStudioCode ###
 .vscode/*
-!.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
