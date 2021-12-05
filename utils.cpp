@@ -14,10 +14,27 @@ Variable::Variable(const int _val) {
 bool Variable::checkConst() {
   return (this->type == var_type::v_const || this->type == var_type::v_value);
 }
+
 void Environment::putVar(string name, Variable *var) {
   assert(var != NULL);
   if (variables.count(name)) {
     yyerror("variable redefined");
   }
   variables[name] = var;
+}
+
+void Parser::pushEnv(bool is_param) {
+  Environment *env = new Environment(this->top, is_param);
+  this->top = env;
+}
+void Parser::popEnv() {
+  assert(this->top != NULL);
+  this->top = this->top->prev;
+}
+void Parser::putFunc(string name, Function *func) {
+  assert(func != NULL);
+  if (functions.count(name)) {
+    yyerror("function redefined");
+  }
+  functions[name] = func;
 }

@@ -14,6 +14,7 @@ Parser parser;
 %token IF ELSE WHILE BREAK CONTINUE RETURN
 %token AND OR EQ NEQ LEQ GEQ
 %token IDENT INT_CONST
+
 %%
 
 CompUnits       : CompUnits CompUnit
@@ -32,7 +33,7 @@ ConstDefs       : ConstDefs ',' ConstDef
                 | ConstDef
                 ;
 ConstDef        : IDENT ConstExps {
-                    $$ = new Variable(true);
+                    $$ = new Variable(true); // a const variable here
                     parser.top->putVar(*(string *) $1, (Variable *)$$);
                   } '=' ConstInitVal
                 ;
@@ -52,7 +53,7 @@ VarDefs         : VarDefs ',' VarDef
                 | VarDef
                 ;
 VarDef          : IDENT ConstExps {
-                    $$ = new Variable(false);
+                    $$ = new Variable(false); // a var variable here
                     parser.top->putVar(*(string *) $1, (Variable *)$$);
                   }
                 | IDENT ConstExps {
@@ -80,7 +81,12 @@ FuncFParam      : INT IDENT
                 | INT IDENT '[' ']' ConstExps
                 ;
 
-Block           : '{' BlockItems '}'
+Block           : '{' {
+                    parser.pushEnv();
+                  }
+                  BlockItems '}' {
+                    parser.popEnv();
+                  }
                 ;
 BlockItems      : BlockItems BlockItem
                 |
@@ -94,18 +100,55 @@ Stmt            : LVal '=' Exp ';' {
                 | Exp ';'
                 | ';'
                 | Block
-                | IF '(' Cond ')' Stmt
-                | IF '(' Cond ')' Stmt ELSE Stmt
-                | WHILE '(' Cond ')' Stmt
-                | BREAK ';'
-                | CONTINUE ';'
+                | IF '(' Cond ')' {
+                    $1 = new IfStmt(*(int *)$3, genLabel(), genLabel());
+                    emit("goto l" + to_string(((IfStmt *)$1)->label_false)); // goto false
+                    emitLabel(((IfStmt *)$1)->label_true); // generate true label
+                  }
+                  Stmt {
+                    emit("goto l" + to_string(((IfStmt *)$1)->label_after)); 
+                    emitLabel(((IfStmt *)$1)->label_false); // generate false label
+                  }
+                  Danglingelse {
+                    emitLabel(((IfStmt *)$1)->label_after); // generate after label
+                  }
+                | WHILE {
+                    $1 = new WhileStmt(genLabel(), 0, genLabel());
+                    emitLabel(((WhileStmt *)$1)->label_begin); // generate begin label
+                    parser.while_stack.push_back((WhileStmt *)$1);
+                  }
+                  '(' Cond ')' {
+                    ((WhileStmt *)$1)->label_body = *(int *)$4;
+                    emit("goto l" + to_string(((WhileStmt *)$1)->label_after)); // goto after
+                    emitLabel(((WhileStmt *)$1)->label_body); // generate body label
+                  }
+                  Stmt {
+                    emit("goto l" + to_string(((WhileStmt *)$1)->label_begin)); // goto begin
+                    emitLabel(((WhileStmt *)$1)->label_after); // generate after label
+                    parser.while_stack.pop_back();
+                  }
+                | BREAK ';' {
+                    if (parser.while_stack.size() == 0) {
+                      yyerror("Not in while loop");
+                    }
+                    emit("goto l" + to_string(parser.while_stack.back()->label_after));
+                  }
+                | CONTINUE ';' {
+                    if (parser.while_stack.size() == 0) {
+                      yyerror("Not in while loop");
+                    }
+                    emit("goto l" + to_string(parser.while_stack.back()->label_begin));
+                  }
                 | RETURN Exp ';'
                 | RETURN ';'
+                ;
+Danglingelse    : ELSE Stmt
+                |
                 ;
 
 Exp             : AddExp { $$ = $1; }
                 ;
-Cond            : LOrExp { $$ = $1; /* TODO only get true label here, false label need to be generated upper level. */}
+Cond            : LOrExp { $$ = $1; }
                 ;
 LVal            : IDENT Exps
                 ;
