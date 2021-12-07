@@ -33,6 +33,7 @@ ConstDef        : IDENT ConstExps { // const variables
                       $$ = new Variable(true, shape);
                     }
                     parser.top->putVar(name, (Variable *)$$);
+                    initializer.set((Variable *)$$);
                   } '=' ConstInitVal
                 ;
 ConstExps       : ConstExps '[' ConstExp ']' {
@@ -41,7 +42,9 @@ ConstExps       : ConstExps '[' ConstExp ']' {
                   }
                 | { $$ = new deque<int>(); }
                 ;
-ConstInitVal    : ConstExp
+ConstInitVal    : ConstExp {
+                    initializer.initialize((Variable *)$1, true);
+                  }
                 | '{' ConstInitVals '}'
                 | '{' '}'
                 ;
@@ -62,6 +65,16 @@ VarDef          : IDENT ConstExps { // var variables
                       $$ = new Variable(false, shape);
                     }
                     parser.top->putVar(name, (Variable *)$$);
+                    if (parser.top->prev == NULL) { // global variable, init to 0
+                      if (shape->size() == 0) {
+                        emit(((Variable *)$$)->getName() + "=0");
+                      } else {
+                        int total_size = ((Variable *)$$)->getTotalSize();
+                        for (int i = 0; i < total_size; i += 4) {
+                          emit(((Variable *)$$)->getName() + "[" + to_string(i) + "]=0");
+                        }
+                      }
+                    }
                   }
                 | IDENT ConstExps {
                     string name = *(string *)$1;
@@ -72,11 +85,27 @@ VarDef          : IDENT ConstExps { // var variables
                       $$ = new Variable(false, shape);
                     }
                     parser.top->putVar(name, (Variable *)$$);
-                  }'=' InitVal
+                    initializer.set((Variable *)$$);
+                  }
+                  '=' InitVal
                 ;
-InitVal         : Exp
-                | '{' InitVals '}'
-                | '{' '}'
+InitVal         : Exp {
+                    initializer.initialize((Variable *)$1, false);
+                  }
+                | '{' {
+                    initializer.level++;
+                  }
+                  InitVals '}' {
+                    initializer.fillZero();
+                    initializer.level--;
+                  }
+                | '{' {
+                    initializer.level++;
+                  }
+                  '}' {
+                    initializer.fillZero();
+                    initializer.level--;
+                  }
                 ;
 InitVals        : InitVals ',' InitVal
                 | InitVal
@@ -142,14 +171,14 @@ FuncDef         : INT IDENT '(' ')' {
 FuncFParams     : FuncFParams ',' INT IDENT { // 如果将FuncFParam分开表示，无法为函数参数编号
                     $$ = new int(*(int *)$1 + 1);
                     string name = *(string *) $4;
-                    parser.top->putVar(name, new Variable(v_param, *(int *)$1 - 1, NULL));
+                    parser.top->putVar(name, new Variable(v_param, *(int *)$$ - 1, NULL));
                   }
                 | FuncFParams ',' INT IDENT '[' ']' ConstExps {
                     $$ = new int(*(int *)$1 + 1);
                     string name = *(string *) $4;
                     deque<int> *t = (deque<int> *)$7;
                     t->push_front(0);
-                    parser.top->putVar(name, new Variable(v_param, *(int *)$1 - 1,t));
+                    parser.top->putVar(name, new Variable(v_param, *(int *)$$ - 1,t));
                   }
                 | INT IDENT {
                     $$ = new int(1);
@@ -223,8 +252,12 @@ Stmt            : LVal '=' Exp ';' {
                     }
                     emit("goto l" + to_string(parser.while_stack.back()->label_begin));
                   }
-                | RETURN Exp ';'
-                | RETURN ';'
+                | RETURN Exp ';' {
+                    emit("return " + ((Variable *)$2)->getName());
+                  }
+                | RETURN ';' {
+                    emit("return");
+                  }
                 ;
 Danglingelse    : ELSE Stmt
                 |
@@ -237,9 +270,22 @@ Cond            : LOrExp { $$ = $1; }
 LVal            : IDENT Exps {
                     string name = *(string *) $1;
                     $$ = parser.top->getVar(name);
-                    deque<Variable *> *t = (deque<Variable *> *)$2;
-                    if (t->size() != 0) { // TODO array access condition
-
+                    auto index = (deque<Variable *> *)$2;
+                    if (index->size() != 0) {
+                      auto sizes = ((Variable *)$$)->getSizes();
+                      bool all_const = true; // check if all index is const
+                      for (auto i: *index) {
+                        if (!i->checkConst()) {
+                          all_const = false;
+                          break;
+                        }
+                      }
+                      if (all_const) {
+                        int offset = 0;
+                        for (int i = 0; i < index->size(); i++) {
+                          offset += sizes->at(i) * ((Variable *)(index->at(i)))->value;
+                        } // TODO: how to do next?
+                      }
                     }
                   }
                 ;
@@ -251,7 +297,7 @@ Exps            : Exps '[' Exp ']' {
                 ;
 PrimaryExp      : '(' Exp ')' { $$ = $2; }
                 | LVal {
-                    $$ = $1; // TODO: array condition
+                    $$ = $1; // TODO: array condition, extract value
                   }
                 | Number { $$ = $1; }
                 ;

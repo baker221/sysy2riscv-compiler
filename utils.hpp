@@ -4,7 +4,6 @@
 #include <iostream>
 #include <string>
 #include <unordered_map>
-#include <vector>
 #include <unistd.h>
 extern int yylineno;
 extern "C" {
@@ -39,6 +38,8 @@ struct Variable {
   var_type type;
   int value;
   deque<int> *shape;
+  deque<int> *sizes;
+  deque<int> *array_values;
   Variable(bool is_const,
            deque<int> *_shape); // construct a var or const variable
   Variable(bool is_const); // var or const variable and scalar
@@ -48,6 +49,8 @@ struct Variable {
   bool checkConst();
   bool checkArray();
   void declare();
+  deque<int> *getSizes();
+  int getTotalSize();
 };
 
 struct Function {
@@ -82,7 +85,7 @@ struct Environment {
 
 struct Parser {
   Environment *top;
-  vector<WhileStmt *> while_stack;
+  deque<WhileStmt *> while_stack;
   unordered_map<string, Function *> functions;
   Parser() { top = new Environment(NULL, false); }
   void pushEnv(bool is_param);
@@ -93,6 +96,13 @@ struct Parser {
 
 struct Initializer {
   Variable *var;
+  bool is_array;
+  deque<int> element_num;
+  int level, pos;
+  void set(Variable *_var);
+  void initialize(Variable *t, bool is_const); // target and if target is constexp
+  void fillZero();
 };
 
 extern Parser parser;
+extern Initializer initializer;
