@@ -27,6 +27,10 @@ enum var_type {
   v_param, // function param
   v_access
 };
+enum func_type {
+  type_int,
+  type_void
+};
 const int INT_SIZE = 4;
 
 struct Variable {
@@ -48,8 +52,8 @@ struct Variable {
 
 struct Function {
   int param_num;
-  int func_type; // 0: void, 1: int
-  Function(int p, int t) : param_num(p), func_type(t) {}
+  func_type type;
+  Function(int p, func_type t) : param_num(p), type(t) {}
 };
 
 struct IfStmt {
@@ -87,6 +91,8 @@ struct Parser {
   Function *getFunc(string name);
 };
 
-struct Initializer {};
+struct Initializer {
+  Variable *var;
+};
 
 extern Parser parser;

@@ -67,7 +67,7 @@ void Variable::declare() { // TODO const 变量如何声明？
     emit("var " + this->getName());
   } else {
     int size = INT_SIZE;
-    for (int i : *this->shape) {
+    for (auto i : *this->shape) {
       size *= i;
     }
     emit("var " + to_string(size) + " " + this->getName());
@@ -105,7 +105,7 @@ void Parser::popEnv() {
 void Parser::putFunc(string name, Function *func) {
   assert(func != NULL);
   if (functions.count(name)) {
-    yyerror("function redefined");
+    yyerror(("function " + name + " redefined").c_str());
   }
   functions[name] = func;
 }
@@ -113,7 +113,7 @@ Function *Parser::getFunc(string name) {
   if (functions.count(name)) {
     return functions[name];
   }
-  yyerror("function not defined");
+  yyerror(("function " + name + " not defined").c_str());
   return NULL;
 }
 
@@ -137,15 +137,15 @@ int main(int argc, char **argv) {
   if (yyin == NULL || yyout == NULL)
     yyerror("failed to open files\n");
 
-  parser.putFunc("getint", new Function(0, 1));   // int
-  parser.putFunc("getch", new Function(0, 1));    // int
-  parser.putFunc("getarray", new Function(1, 1)); // int
-  parser.putFunc("putint", new Function(1, 0));   // void
-  parser.putFunc("putch", new Function(1, 0));    // void
-  parser.putFunc("putarray", new Function(2, 0)); // void
+  parser.putFunc("getint", new Function(0, type_int));
+  parser.putFunc("getch", new Function(0, type_int));
+  parser.putFunc("getarray", new Function(1, type_int));
+  parser.putFunc("putint", new Function(1, type_void));
+  parser.putFunc("putch", new Function(1, type_void));
+  parser.putFunc("putarray", new Function(2, type_void));
   yyparse();
-  // for (auto i : mycode) {
-  //   cout << i << endl;
-  // }
+  for (auto i : mycode) {
+    cout << i << endl;
+  }
   return 0;
 }

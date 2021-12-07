@@ -58,7 +58,7 @@ VarDef          : IDENT ConstExps { // var variables
                     deque<int> *shape = (deque<int> *)$2;
                     if (shape->size() == 0) {
                       $$ = new Variable(false);
-                    } else {
+                    } else { // array
                       $$ = new Variable(false, shape);
                     }
                     parser.top->putVar(name, (Variable *)$$);
@@ -85,7 +85,7 @@ InitVals        : InitVals ',' InitVal
 FuncDef         : INT IDENT '(' ')' {
                     string name = *(string *) $2;
                     int param_num = 0;
-                    Function *func = new Function(param_num, 1);
+                    Function *func = new Function(param_num, type_int);
                     parser.putFunc(name, func);
                     emit("f_" + name + " [" + to_string(param_num) + "]");
                   }
@@ -97,7 +97,7 @@ FuncDef         : INT IDENT '(' ')' {
                 | VOID IDENT '(' ')' {
                     string name = *(string *) $2;
                     int param_num = 0;
-                    Function *func = new Function(param_num, 0);
+                    Function *func = new Function(param_num, type_void);
                     parser.putFunc(name, func);
                     emit("f_" + name + " [" + to_string(param_num) + "]");
                   }
@@ -112,7 +112,7 @@ FuncDef         : INT IDENT '(' ')' {
                   FuncFParams ')' {
                     string name = *(string *) $2;
                     int param_num = *(int *)$5;
-                    Function *func = new Function(param_num, 1);
+                    Function *func = new Function(param_num, type_int);
                     parser.putFunc(name, func);
                     emit("f_" + name + " [" + to_string(param_num) + "]");
                   }
@@ -128,7 +128,7 @@ FuncDef         : INT IDENT '(' ')' {
                   FuncFParams ')' {
                     string name = *(string *) $2;
                     int param_num = *(int *)$5;
-                    Function *func = new Function(param_num, 0);
+                    Function *func = new Function(param_num, type_void);
                     parser.putFunc(name, func);
                     emit("f_" + name + " [" + to_string(param_num) + "]");
                   }
@@ -260,8 +260,35 @@ Number          : INT_CONST {
                   }
                 ;
 UnaryExp        : PrimaryExp { $$ = $1; }
-                | IDENT '(' ')'
-                | IDENT '(' FuncRParams ')'
+                | IDENT '(' ')' {
+                    // TODO starttime and stoptime
+                    string name = *(string *) $1;
+                    auto func = parser.getFunc(name);
+                    if (func->type == type_int) {
+                      $$ = new Variable(false);
+                      emit(((Variable *)$$)->getName() + "=call f_" + name);
+                    } else if (func->type == type_void) {
+                      emit("call f_" + name);
+                    } else {
+                      yyerror("Wrong function type");
+                    }
+                  }
+                | IDENT '(' FuncRParams ')' {
+                    string name = *(string *) $1;
+                    auto func = parser.getFunc(name);
+                    auto param_list = (deque<Variable *> *)$3;
+                    for (auto i: *param_list) {
+                      emit("param " + i->getName());
+                    }
+                    if (func->type == type_int) {
+                      $$ = new Variable(false);
+                      emit(((Variable *)$$)->getName() + "=call f_" + name);
+                    } else if (func->type == type_void) {
+                      emit("call f_" + name);
+                    } else {
+                      yyerror("Wrong function type");
+                    }
+                  }
                 | '+' UnaryExp { $$ = $2; }
                 | '-' UnaryExp {
                     if (((Variable *)$2)->checkConst()) {
@@ -280,8 +307,14 @@ UnaryExp        : PrimaryExp { $$ = $1; }
                     }
                   }
                 ;
-FuncRParams     : FuncRParams ',' Exp
-                | Exp
+FuncRParams     : FuncRParams ',' Exp {
+                    ((deque<Variable *> *)$1)->push_back((Variable *)$3);
+                    $$ = $1;
+                  }
+                | Exp {
+                    $$ = new deque<Variable *>();
+                    ((deque<Variable *> *)$$)->push_back((Variable *)$1);
+                  }
                 ;
 MulExp          : UnaryExp { $$ = $1; }
                 | MulExp '*' UnaryExp {
