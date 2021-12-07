@@ -2,8 +2,8 @@
 #include "utils.hpp"
 #include "yacc.tab.hpp"
 extern "C" {
-    int yylex();
-    int yyparse();
+int yylex();
+int yyparse();
 }
 %}
 %option yylineno
@@ -25,7 +25,7 @@ identifier [_a-zA-Z]([_a-zA-Z0-9])*
 {space}                            {}
 {newline}                          {}
 {comment1}                         {}
-{comment2}                         {printf("comment2 here.\n");}
+{comment2}                         {/*printf("comment2 here.\n");*/}
 int                                {return INT;}
 const                              {return CONST;}
 void                               {return VOID;}
@@ -41,7 +41,11 @@ return                             {return RETURN;}
 "!="                               {return NEQ;}
 ">="                               {return GEQ;}
 "<="                               {return LEQ;}
-{identifier}                       {return IDENT;}
+{identifier}                       {
+    yylval = new string(yytext);
+    return IDENT;
+}
+
 {integer10}|{integer8}|{integer16} {
     yylval = new int;
     sscanf(yytext, "%i", (int*)yylval);

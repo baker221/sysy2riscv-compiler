@@ -1,6 +1,7 @@
 *.yy.*
 *.tab.*
 test/*
+compliler
 # Created by https://www.toptal.com/developers/gitignore/api/macos,linux,windows,python,c,c++,visualstudiocode,pycharm,clion
 # Edit at https://www.toptal.com/developers/gitignore?templates=macos,linux,windows,python,c,c++,visualstudiocode,pycharm,clion
 
