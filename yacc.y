@@ -92,7 +92,7 @@ FuncDef         : INT IDENT '(' ')' {
                   Block {
                     string name = *(string *) $2;
                     emit("return 0");
-                    emit("end f_" + name)
+                    emit("end f_" + name);
                   }
                 | VOID IDENT '(' ')' {
                     string name = *(string *) $2;
@@ -104,7 +104,7 @@ FuncDef         : INT IDENT '(' ')' {
                   Block {
                     string name = *(string *) $2;
                     emit("return");
-                    emit("end f_" + name)
+                    emit("end f_" + name);
                   }
                 | INT IDENT '(' {
                     parser.pushEnv(true);
