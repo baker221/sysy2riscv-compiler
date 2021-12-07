@@ -6,10 +6,8 @@
 #include <unordered_map>
 #include <unistd.h>
 extern int yylineno;
-extern "C" {
 int yylex();
 int yyparse();
-}
 extern FILE *yyin;
 extern FILE *yyout;
 #define YYSTYPE void *
@@ -40,11 +38,14 @@ struct Variable {
   deque<int> *shape;
   deque<int> *sizes;
   deque<int> *array_values;
+  Variable *array_head; // indicate the head of array, only useful for v_access
+  Variable *offset; // indicate the offset, only useful for v_access
   Variable(bool is_const,
            deque<int> *_shape); // construct a var or const variable
   Variable(bool is_const); // var or const variable and scalar
   Variable(var_type _type, int _no, deque<int> *_shape);
   Variable(const int _val); // construct a tmp value
+  Variable(Variable *_head, Variable *_offset); // construct a access
   string getName();
   bool checkConst();
   bool checkArray();

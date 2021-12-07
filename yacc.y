@@ -284,7 +284,36 @@ LVal            : IDENT Exps {
                         int offset = 0;
                         for (int i = 0; i < index->size(); i++) {
                           offset += sizes->at(i) * ((Variable *)(index->at(i)))->value;
-                        } // TODO: how to do next?
+                        }
+                        if (index->size() == sizes->size()) {
+                          if (((Variable *)$$)->checkConst()) {
+                            $$ = new Variable(((Variable *)$$)->array_values->at(offset));
+                          } else {
+                            Variable *offset_var = new Variable(offset);
+                            $$ = new Variable((Variable *)$$, offset_var);
+                          }
+                        } else {
+                          cout << "index num less" << endl;
+                          Variable *v = new Variable(false);
+                          emit(v->getName() + "=" + ((Variable *)$$)->getName() + "+" + to_string(offset));
+                          $$ = v;
+                        }
+                      } else { // need to print the process to calculate offset
+                        Variable *offset_var = new Variable(false);
+                        emit(offset_var->getName() + "=0");
+                        for (int i = 0; i < index->size(); i++) {
+                          Variable *t = new Variable(false);
+                          emit(t->getName() + "=" + ((Variable *)index->at(i))->getName() + "*" + to_string(sizes->at(i)));
+                          emit(offset_var->getName() + "=" + offset_var->getName() + "+" + t->getName());
+                        }
+                        if (index->size() == sizes->size()) {
+                          $$ = new Variable((Variable *)$$, offset_var);
+                        } else {
+                          cout << "index num less" << endl;
+                          Variable *v = new Variable(false);
+                          emit(v->getName() + "=" + ((Variable *)$$)->getName() + "+" + offset_var->getName());
+                          $$ = v;
+                        }
                       }
                     }
                   }
@@ -297,7 +326,11 @@ Exps            : Exps '[' Exp ']' {
                 ;
 PrimaryExp      : '(' Exp ')' { $$ = $2; }
                 | LVal {
-                    $$ = $1; // TODO: array condition, extract value
+                    if (((Variable *)$1)->type == v_access) {
+                      $$ = new Variable(false);
+                      emit(((Variable *)$$)->getName() + "=" + ((Variable *)$1)->getName());
+                    }
+                    $$ = $1;
                   }
                 | Number { $$ = $1; }
                 ;

@@ -47,6 +47,12 @@ Variable::Variable(var_type _type, const int _no, deque<int> *_shape) {
   this->seq_no = _no;
   this->shape = _shape;
 }
+Variable::Variable(Variable *_head, Variable *_offset) {
+  this->type = v_access;
+  this->array_head = _head;
+  this->offset = _offset;
+  this->seq_no = -1;
+}
 bool Variable::checkConst() {
   return (this->type == v_const || this->type == v_value);
 }
@@ -56,6 +62,8 @@ string Variable::getName() {
     return "T" + to_string(this->seq_no);
   } else if (this->type == v_param) {
     return "p" + to_string(this->seq_no);
+  } else if (this->type == v_access) {
+    return this->array_head->getName() + "[" + this->offset->getName() + "]";
   } else {
     return to_string(this->value);
   } // TODO array condition
@@ -162,10 +170,74 @@ void Initializer::initialize(Variable *t, bool is_const) {
 }
 void Initializer::fillZero() {
   // 将未填满的初始化为0
-  for (; this->pos % this->element_num[this->level] != 0;
-       this->pos++) {
-    emit(this->var->getName() + "[" +
-         to_string(this->pos * INT_SIZE) + "]=0");
+  for (; this->pos % this->element_num[this->level] != 0; this->pos++) {
+    emit(this->var->getName() + "[" + to_string(this->pos * INT_SIZE) + "]=0");
+  }
+}
+string final_code;
+void output(const string &s) {
+  final_code += s + "\n";
+}
+bool isFuncHeader(const string &s) {
+  return s.substr(0, 2) == "f_";
+}
+bool isVarDefine(const string &s) {
+  return s.substr(0, 4) == "var ";
+}
+bool isFuncEnd(const string &s) {
+  return s.substr(0, 6) == "end f_";
+}
+bool isMain(const string &s) {
+  return s.substr(0, 7) == "f_main ";
+}
+void postProcess(const deque<string> &codes) {
+  bool is_global = true;
+  deque<string> global_init;
+  for (auto code : codes) {
+    if (isFuncHeader(code)) {
+      is_global = false;
+    }
+    else if (isFuncEnd(code)) {
+      is_global = true;
+    }
+    else if (is_global && isVarDefine(code)) {
+      output(code);
+    }
+    else if (is_global && !isVarDefine(code)) { // global initilization
+      global_init.push_back(code);
+    }
+  }
+  auto i = codes.begin();
+  while(i != codes.end()) {
+    if (isFuncHeader(*i)) {
+      output(*i);
+      auto j = i;
+      while(j != codes.end() && !isFuncEnd(*j)) {
+        j++;
+      }
+      for (auto k = i + 1; k != j; k++) { // local variable define
+        if (isVarDefine(*k)) {
+          output(*k);
+        }
+      }
+      if (isMain(*i)) {
+        for (auto k = global_init.begin(); k != global_init.end(); k++) {
+          output(*k);
+        }
+      }
+      for (auto k = i + 1; k != j; k++) {
+        if (!isVarDefine(*k)) {
+          output(*k);
+        }
+      }
+      output(*j);
+      if (j != codes.end()) {
+        i = j;
+      }
+    }
+    else {
+      i++;
+    }
   }
 }
 
@@ -198,8 +270,8 @@ int main(int argc, char **argv) {
   parser.putFunc("putch", new Function(1, type_void));
   parser.putFunc("putarray", new Function(2, type_void));
   yyparse();
-  for (auto i : mycode) {
-    cout << i << endl;
-  }
+  final_code = "";
+  postProcess(mycode);
+  fprintf(yyout, final_code.c_str());
   return 0;
 }

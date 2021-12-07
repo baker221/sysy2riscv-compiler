@@ -1,10 +1,6 @@
 %{
 #include "utils.hpp"
 #include "yacc.tab.hpp"
-extern "C" {
-int yylex();
-int yyparse();
-}
 %}
 %option yylineno
 
