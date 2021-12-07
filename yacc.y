@@ -120,7 +120,7 @@ FuncDef         : INT IDENT '(' ')' {
                     parser.popEnv();
                     string name = *(string *) $2;
                     emit("return 0");
-                    emit("end f_" + name)
+                    emit("end f_" + name);
                   }
                 | VOID IDENT '(' {
                     parser.pushEnv(true);
@@ -136,7 +136,7 @@ FuncDef         : INT IDENT '(' ')' {
                     parser.popEnv();
                     string name = *(string *) $2;
                     emit("return");
-                    emit("end f_" + name)
+                    emit("end f_" + name);
                   }
                 ;
 FuncFParams     : FuncFParams ',' INT IDENT { // 如果将FuncFParam分开表示，无法为函数参数编号
