@@ -1,4 +1,5 @@
-CCFLAGS=-DDEBUG -Wall -g
+# CCFLAGS=-DDEBUG -Wall -g
+CCFLAGS=-DDEBUG -w -g
 
 compiler: lex.yy.o yacc.tab.o utils.o
 	g++ -Wno-register -O2 -lm -std=c++17 lex.yy.o yacc.tab.o utils.o -o compiler -Idirs ${CCFLAGS}
