@@ -1,7 +1,8 @@
-# CCFLAGS=-DDEBUG -Wall -g
-CCFLAGS=-DDEBUG -w -g
+BUILD_DIR ?= $(shell pwd)
+CCFLAGS=-DDEBUG -Wall -g
+#CCFLAGS=-DDEBUG -w -g
 
-compiler: lex.yy.o yacc.tab.o utils.o
+$(BUILD_DIR)/compiler: lex.yy.o yacc.tab.o utils.o
 	g++ -Wno-register -O2 -lm -std=c++17 lex.yy.o yacc.tab.o utils.o -o compiler -Idirs ${CCFLAGS}
 
 lex.yy.cpp: lex.l utils.hpp
