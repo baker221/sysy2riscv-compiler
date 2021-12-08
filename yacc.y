@@ -73,6 +73,7 @@ VarDef          : IDENT ConstExps { // var variables
                         int begin_label = genLabel();
                         int after_label = genLabel();
                         Variable *i = new Variable(false);
+                        emit(i->getName() + "=0");
                         Variable *t = new Variable(false);
                         emitLabel(begin_label);
                         emit(t->getName() + "=" + i->getName() + "<" + to_string(total_size));

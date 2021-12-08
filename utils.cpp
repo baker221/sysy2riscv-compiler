@@ -176,6 +176,7 @@ void Initializer::fillZero(bool all_blank) {
   int begin_label = genLabel();
   int after_label = genLabel();
   Variable *i = new Variable(false);
+  emit(i->getName() + "=0");
   Variable *t = new Variable(false);
   emitLabel(begin_label);
   emit(t->getName() + "=" + i->getName() + "<" + to_string(num));
@@ -183,7 +184,7 @@ void Initializer::fillZero(bool all_blank) {
   emit(t->getName() + "=" + to_string(pos) + "+" + i->getName());
   emit(t->getName() + "=" + t->getName() + "*" + to_string(INT_SIZE));
   emit(this->var->getName() + "[" + t->getName() + "]=0");
-  emit(i->getName() + "=" + i->getName() + "+4");
+  emit(i->getName() + "=" + i->getName() + "+1");
   emit("goto l" + to_string(begin_label));
   emitLabel(after_label);
   pos += num;
