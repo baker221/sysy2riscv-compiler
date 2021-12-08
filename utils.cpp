@@ -66,7 +66,7 @@ string Variable::getName() {
     return this->array_head->getName() + "[" + this->offset->getName() + "]";
   } else {
     return to_string(this->value);
-  } // TODO array condition
+  }
 }
 void Variable::declare() {
   if (!this->checkArray()) {
@@ -217,17 +217,17 @@ void postProcess(const deque<string> &codes) {
       }
       for (auto k = i + 1; k != j; k++) { // local variable define
         if (isVarDefine(*k)) {
-          output(*k);
+          output("\t" + *k);
         }
       }
       if (isMain(*i)) {
         for (auto k = global_init.begin(); k != global_init.end(); k++) {
-          output(*k);
+          output("\t" + *k);
         }
       }
       for (auto k = i + 1; k != j; k++) {
         if (!isVarDefine(*k)) {
-          output(*k);
+          output("\t" + *k);
         }
       }
       output(*j);
@@ -272,6 +272,6 @@ int main(int argc, char **argv) {
   yyparse();
   final_code = "";
   postProcess(mycode);
-  fprintf(yyout, final_code.c_str());
+  fprintf(yyout, "%s", final_code.c_str());
   return 0;
 }
