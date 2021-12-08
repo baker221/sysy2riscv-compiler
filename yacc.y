@@ -402,7 +402,7 @@ MulExp          : UnaryExp { $$ = $1; }
                       $$ = new Variable(((Variable *)$1)->value * ((Variable *)$3)->value);
                     } else {
                       $$ = new Variable(false);
-                      emit(((Variable *)$$)->getName() + "=" + ((Variable *)$1)->getName() + "*" + ((Variable *)$3)->getName());
+                      emit(((Variable *)$$)->getName() + "=" + ((Variable *)$1)->getName() + " * " + ((Variable *)$3)->getName());
                     }
                   }
                 | MulExp '/' UnaryExp {
@@ -410,7 +410,7 @@ MulExp          : UnaryExp { $$ = $1; }
                       $$ = new Variable(((Variable *)$1)->value / ((Variable *)$3)->value);
                     } else {
                       $$ = new Variable(false);
-                      emit(((Variable *)$$)->getName() + "=" + ((Variable *)$1)->getName() + "/" + ((Variable *)$3)->getName());
+                      emit(((Variable *)$$)->getName() + "=" + ((Variable *)$1)->getName() + " / " + ((Variable *)$3)->getName());
                     }
                   }
                 | MulExp '%' UnaryExp {
@@ -418,7 +418,7 @@ MulExp          : UnaryExp { $$ = $1; }
                       $$ = new Variable(((Variable *)$1)->value % ((Variable *)$3)->value);
                     } else {
                       $$ = new Variable(false);
-                      emit(((Variable *)$$)->getName() + "=" + ((Variable *)$1)->getName() + "%" + ((Variable *)$3)->getName());
+                      emit(((Variable *)$$)->getName() + "=" + ((Variable *)$1)->getName() + " % " + ((Variable *)$3)->getName());
                     }
                   }
                 ;
@@ -428,7 +428,7 @@ AddExp          : MulExp { $$ = $1; }
                       $$ = new Variable(((Variable *)$1)->value + ((Variable *)$3)->value);
                     } else {
                       $$ = new Variable(false);
-                      emit(((Variable *)$$)->getName() + "=" + ((Variable *)$1)->getName() + "+" + ((Variable *)$3)->getName());
+                      emit(((Variable *)$$)->getName() + "=" + ((Variable *)$1)->getName() + " + " + ((Variable *)$3)->getName());
                     }
                   }
                 | AddExp '-' MulExp {
@@ -436,7 +436,7 @@ AddExp          : MulExp { $$ = $1; }
                       $$ = new Variable(((Variable *)$1)->value - ((Variable *)$3)->value);
                     } else {
                       $$ = new Variable(false);
-                      emit(((Variable *)$$)->getName() + "=" + ((Variable *)$1)->getName() + "-" + ((Variable *)$3)->getName());
+                      emit(((Variable *)$$)->getName() + "=" + ((Variable *)$1)->getName() + " - " + ((Variable *)$3)->getName());
                     }
                   }
                 ;
