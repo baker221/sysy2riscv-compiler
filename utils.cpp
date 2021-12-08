@@ -14,6 +14,7 @@ int genLabel() {
 }
 
 Variable::Variable(bool is_const, deque<int> *_shape) {
+  assert(_shape != NULL);
   if (is_const) {
     this->type = v_const;
   } else {
@@ -22,7 +23,12 @@ Variable::Variable(bool is_const, deque<int> *_shape) {
   seq_no = count++;
   this->shape = _shape;
   if (this->checkArray()) {
-    int total_size = this->getTotalSize() / INT_SIZE;
+    this->sizes = new deque<int>(); // get total sizes
+    this->sizes->push_back(INT_SIZE);
+    for (int i = this->shape->size() - 1; i >= 1; i--) {
+      this->sizes->push_front(this->shape->at(i) * this->sizes->front());
+    }
+    int total_size = this->sizes->at(0) * this->shape->at(0);;
     this->array_values = new deque<int>(total_size);
   }
   this->declare();
@@ -88,6 +94,7 @@ deque<int> *Variable::getSizes() {
   return this->sizes;
 }
 int Variable::getTotalSize() {
+  assert(this->type != v_param);
   if (this->sizes == NULL) {
     this->getSizes();
   }
@@ -136,6 +143,7 @@ Function *Parser::getFunc(string name) {
   yyerror(("function " + name + " not defined").c_str());
   return NULL;
 }
+
 void Initializer::set(Variable *_var) {
   assert(_var != NULL);
   this->var = _var;
