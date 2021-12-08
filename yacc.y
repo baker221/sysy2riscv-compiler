@@ -306,7 +306,7 @@ LVal            : IDENT Exps {
                         } else {
                           // cout << "index num less" << endl;
                           Variable *v = new Variable(false);
-                          emit(v->getName() + "=" + ((Variable *)$$)->getName() + "+" + to_string(offset));
+                          emit(v->getName() + "=" + ((Variable *)$$)->getName() + " + " + to_string(offset));
                           $$ = v;
                         }
                       } else { // need to print the process to calculate offset
@@ -314,15 +314,15 @@ LVal            : IDENT Exps {
                         emit(offset_var->getName() + "=0");
                         for (int i = 0; i < index->size(); i++) {
                           Variable *t = new Variable(false);
-                          emit(t->getName() + "=" + ((Variable *)index->at(i))->getName() + "*" + to_string(sizes->at(i)));
-                          emit(offset_var->getName() + "=" + offset_var->getName() + "+" + t->getName());
+                          emit(t->getName() + "=" + ((Variable *)index->at(i))->getName() + " * " + to_string(sizes->at(i)));
+                          emit(offset_var->getName() + "=" + offset_var->getName() + " + " + t->getName());
                         }
                         if (index->size() == sizes->size()) {
                           $$ = new Variable((Variable *)$$, offset_var);
                         } else {
                           // cout << "index num less" << endl;
                           Variable *v = new Variable(false);
-                          emit(v->getName() + "=" + ((Variable *)$$)->getName() + "+" + offset_var->getName());
+                          emit(v->getName() + "=" + ((Variable *)$$)->getName() + " + " + offset_var->getName());
                           $$ = v;
                         }
                       }

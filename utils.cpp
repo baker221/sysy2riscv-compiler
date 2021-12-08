@@ -28,20 +28,21 @@ Variable::Variable(bool is_const, deque<int> *_shape) {
     for (int i = this->shape->size() - 1; i >= 1; i--) {
       this->sizes->push_front(this->shape->at(i) * this->sizes->front());
     }
-    int total_size = this->sizes->at(0) * this->shape->at(0);;
+    int total_size = this->sizes->at(0) * this->shape->at(0) / INT_SIZE;
     this->array_values = new deque<int>(total_size);
   }
   this->declare();
 }
 Variable::Variable(bool is_const) {
+  this->shape = NULL;
   if (is_const) {
     this->type = v_const;
+    this->seq_no = -1;
   } else {
     this->type = v_var;
+    this->seq_no = count++;
+    this->declare();
   }
-  seq_no = count++; // TODO: scalar and const variable do not need seq_no and declaration
-  this->shape = NULL;
-  this->declare();
 }
 Variable::Variable(const int _val) {
   this->type = v_value;
@@ -193,8 +194,8 @@ void Initializer::fillZero(bool all_blank) {
   emitLabel(begin_label);
   emit(t->getName() + "=" + i->getName() + "<" + to_string(num));
   emit("if " + t->getName() + "==0 goto l" + to_string(after_label)); 
-  emit(t->getName() + "=" + to_string(pos) + "+" + i->getName());
-  emit(t->getName() + "=" + t->getName() + "*" + to_string(INT_SIZE));
+  emit(t->getName() + "=" + to_string(pos) + " + " + i->getName());
+  emit(t->getName() + "=" + t->getName() + " * " + to_string(INT_SIZE));
   emit(this->var->getName() + "[" + t->getName() + "]=0");
   emit(i->getName() + "=" + i->getName() + "+1");
   emit("goto l" + to_string(begin_label));
