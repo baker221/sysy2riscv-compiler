@@ -139,6 +139,7 @@ Function *Parser::getFunc(string name) {
 void Initializer::set(Variable *_var) {
   assert(_var != NULL);
   this->var = _var;
+  this->element_num.clear();
   auto shape = this->var->shape;
   this->is_array = !(shape == NULL);
   if (this->is_array) {

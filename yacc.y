@@ -81,19 +81,9 @@ VarDef          : IDENT ConstExps { // var variables
                       if (shape->size() == 0) {
                         emit(((Variable *)$$)->getName() + "=0");
                       } else {
-                        int total_size = ((Variable *)$$)->getTotalSize();
-                        int begin_label = genLabel();
-                        int after_label = genLabel();
-                        Variable *i = new Variable(false);
-                        emit(i->getName() + "=0");
-                        Variable *t = new Variable(false);
-                        emitLabel(begin_label);
-                        emit(t->getName() + "=" + i->getName() + "<" + to_string(total_size));
-                        emit("if " + t->getName() + "==0 goto l" + to_string(after_label)); 
-                        emit(((Variable *)$$)->getName() + "[" + i->getName() + "]=0");
-                        emit(i->getName() + "=" + i->getName() + "+4");
-                        emit("goto l" + to_string(begin_label));
-                        emitLabel(after_label);
+                        initializer.set((Variable *)$$);
+                        initializer.level++;
+                        initializer.fillZero(true);
                       }
                     }
                   }
