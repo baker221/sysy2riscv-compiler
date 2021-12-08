@@ -388,7 +388,11 @@ UnaryExp        : PrimaryExp { $$ = $1; }
                   }
                 | '!' UnaryExp {
                     if (((Variable *)$2)->checkConst()) {
-                      $$ = new Variable(!((Variable *)$2)->value);
+                      if (((Variable *)$2)->value == 0) {
+                        $$ = new Variable(1);
+                      } else {
+                        $$ = new Variable(0);
+                      }
                     } else {
                       $$ = new Variable(false);
                       emit(((Variable *)$$)->getName() + "=!" + ((Variable *)$2)->getName());
