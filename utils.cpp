@@ -34,15 +34,14 @@ Variable::Variable(bool is_const, deque<int> *_shape) {
   this->declare();
 }
 Variable::Variable(bool is_const) {
-  this->shape = NULL;
   if (is_const) {
     this->type = v_const;
-    this->seq_no = -1;
   } else {
     this->type = v_var;
-    this->seq_no = count++;
-    this->declare();
   }
+  seq_no = count++; // TODO: scalar and const variable do not need seq_no and declaration
+  this->shape = NULL;
+  this->declare();
 }
 Variable::Variable(const int _val) {
   this->type = v_value;
