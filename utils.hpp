@@ -102,7 +102,7 @@ struct Initializer {
   int level, pos;
   void set(Variable *_var);
   void initialize(Variable *t, bool is_const); // target and if target is constexp
-  void fillZero();
+  void fillZero(bool all_blank = false);
 };
 
 extern Parser parser;

@@ -111,7 +111,7 @@ InitVal         : Exp {
                     initializer.level++;
                   }
                   '}' {
-                    initializer.fillZero();
+                    initializer.fillZero(true);
                     initializer.level--;
                   }
                 ;
@@ -186,7 +186,7 @@ FuncFParams     : FuncFParams ',' INT IDENT { // 如果将FuncFParam分开表示
                     string name = *(string *) $4;
                     deque<int> *t = (deque<int> *)$7;
                     t->push_front(0);
-                    parser.top->putVar(name, new Variable(v_param, *(int *)$$ - 1,t));
+                    parser.top->putVar(name, new Variable(v_param, *(int *)$$ - 1, t));
                   }
                 | INT IDENT {
                     $$ = new int(1);

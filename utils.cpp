@@ -168,8 +168,12 @@ void Initializer::initialize(Variable *t, bool is_const) {
     }
   }
 }
-void Initializer::fillZero() {
+void Initializer::fillZero(bool all_blank) {
   // 将未填满的初始化为0
+  if (all_blank) {
+    emit(this->var->getName() + "[" + to_string(this->pos * INT_SIZE) + "]=0");
+    pos++;
+  }
   for (; this->pos % this->element_num[this->level] != 0; this->pos++) {
     emit(this->var->getName() + "[" + to_string(this->pos * INT_SIZE) + "]=0");
   }
