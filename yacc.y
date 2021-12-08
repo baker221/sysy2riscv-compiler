@@ -301,7 +301,7 @@ LVal            : IDENT Exps {
                             $$ = new Variable((Variable *)$$, offset_var);
                           }
                         } else {
-                          cout << "index num less" << endl;
+                          // cout << "index num less" << endl;
                           Variable *v = new Variable(false);
                           emit(v->getName() + "=" + ((Variable *)$$)->getName() + "+" + to_string(offset));
                           $$ = v;
@@ -317,7 +317,7 @@ LVal            : IDENT Exps {
                         if (index->size() == sizes->size()) {
                           $$ = new Variable((Variable *)$$, offset_var);
                         } else {
-                          cout << "index num less" << endl;
+                          // cout << "index num less" << endl;
                           Variable *v = new Variable(false);
                           emit(v->getName() + "=" + ((Variable *)$$)->getName() + "+" + offset_var->getName());
                           $$ = v;
