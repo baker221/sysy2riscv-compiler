@@ -13,7 +13,7 @@ extern FILE *yyout;
 #define YYSTYPE void *
 using namespace std;
 void emit(string s);
-void emitLabel(int label_num);
+void emitLabel(const int &label_num);
 int genLabel();
 void yyerror(const char *msg);
 

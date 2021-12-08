@@ -7,7 +7,7 @@ void yyerror(const char *msg) {
 
 deque<string> mycode;
 void emit(string s) { mycode.push_back(s); }
-void emitLabel(int label_num) { emit("l" + to_string(label_num) + ":"); }
+void emitLabel(const int &label_num) { emit("l" + to_string(label_num) + ":"); }
 int genLabel() {
   static int label_count = 0;
   return label_count++;
@@ -33,7 +33,7 @@ Variable::Variable(bool is_const) {
   } else {
     this->type = v_var;
   }
-  seq_no = count++;
+  seq_no = count++; // TODO: scalar and const variable do not need seq_no and declaration
   this->shape = NULL;
   this->declare();
 }
@@ -72,10 +72,7 @@ void Variable::declare() {
   if (!this->checkArray()) {
     emit("var " + this->getName());
   } else {
-    int size = INT_SIZE;
-    for (auto i : *this->shape) {
-      size *= i;
-    }
+    int size = this->getTotalSize();
     emit("var " + to_string(size) + " " + this->getName());
   }
 }
@@ -170,13 +167,26 @@ void Initializer::initialize(Variable *t, bool is_const) {
 }
 void Initializer::fillZero(bool all_blank) {
   // 将未填满的初始化为0
+  int num;
   if (all_blank) {
-    emit(this->var->getName() + "[" + to_string(this->pos * INT_SIZE) + "]=0");
-    pos++;
+    num = element_num[this->level];
+  } else {
+    num = element_num[this->level] - (this->pos) % this->element_num[this->level];
   }
-  for (; this->pos % this->element_num[this->level] != 0; this->pos++) {
-    emit(this->var->getName() + "[" + to_string(this->pos * INT_SIZE) + "]=0");
-  }
+  int begin_label = genLabel();
+  int after_label = genLabel();
+  Variable *i = new Variable(false);
+  Variable *t = new Variable(false);
+  emitLabel(begin_label);
+  emit(t->getName() + "=" + i->getName() + "<" + to_string(num));
+  emit("if " + t->getName() + "==0 goto l" + to_string(after_label)); 
+  emit(t->getName() + "=" + to_string(pos) + "+" + i->getName());
+  emit(t->getName() + "=" + t->getName() + "*" + to_string(INT_SIZE));
+  emit(this->var->getName() + "[" + t->getName() + "]=0");
+  emit(i->getName() + "=" + i->getName() + "+4");
+  emit("goto l" + to_string(begin_label));
+  emitLabel(after_label);
+  pos += num;
 }
 string final_code;
 void output(const string &s) {
