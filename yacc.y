@@ -329,8 +329,9 @@ PrimaryExp      : '(' Exp ')' { $$ = $2; }
                     if (((Variable *)$1)->type == v_access) {
                       $$ = new Variable(false);
                       emit(((Variable *)$$)->getName() + "=" + ((Variable *)$1)->getName());
+                    } else {
+                      $$ = $1;
                     }
-                    $$ = $1;
                   }
                 | Number { $$ = $1; }
                 ;
