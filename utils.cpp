@@ -173,7 +173,7 @@ void Initializer::fillZero(bool all_blank) {
   } else {
     num = element_num[this->level] - (this->pos) % this->element_num[this->level];
     if (num == element_num[this->level]) {
-      num = 0;
+      return; // do not need to fill zero.
     }
   }
   int begin_label = genLabel();

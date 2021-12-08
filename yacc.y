@@ -45,8 +45,20 @@ ConstExps       : ConstExps '[' ConstExp ']' {
 ConstInitVal    : ConstExp {
                     initializer.initialize((Variable *)$1, true);
                   }
-                | '{' ConstInitVals '}'
-                | '{' '}'
+                | '{' {
+                    initializer.level++;
+                  }
+                  ConstInitVals '}' {
+                    initializer.fillZero();
+                    initializer.level--;
+                  }
+                | '{' {
+                    initializer.level++;
+                  }
+                  '}' {
+                    initializer.fillZero(true);
+                    initializer.level--;
+                  }
                 ;
 ConstInitVals   : ConstInitVals ',' ConstInitVal
                 | ConstInitVal
