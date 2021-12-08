@@ -70,9 +70,17 @@ VarDef          : IDENT ConstExps { // var variables
                         emit(((Variable *)$$)->getName() + "=0");
                       } else {
                         int total_size = ((Variable *)$$)->getTotalSize();
-                        for (int i = 0; i < total_size; i += 4) {
-                          emit(((Variable *)$$)->getName() + "[" + to_string(i) + "]=0");
-                        }
+                        int begin_label = genLabel();
+                        int after_label = genLabel();
+                        Variable *i = new Variable(false);
+                        Variable *t = new Variable(false);
+                        emitLabel(begin_label);
+                        emit(t->getName() + "=" + i->getName() + "<" + to_string(total_size));
+                        emit("if " + t->getName() + "==0 goto l" + to_string(after_label)); 
+                        emit(((Variable *)$$)->getName() + "[" + i->getName() + "]=0");
+                        emit(i->getName() + "=" + i->getName() + "+4");
+                        emit("goto l" + to_string(begin_label));
+                        emitLabel(after_label);
                       }
                     }
                   }
