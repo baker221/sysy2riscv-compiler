@@ -7,7 +7,12 @@ void yyerror(const char *msg) {
 
 deque<string> mycode;
 void emit(string s) { mycode.push_back(s); }
-void emitLabel(const int &label_num) { emit("l" + to_string(label_num) + ":"); }
+void emitLabel(const int &label_num) {
+  emit("l" + to_string(label_num) + ":");
+  if (label_num == 358) {
+    cout << "At line: " << yylineno << endl;
+  }
+}
 int genLabel() {
   static int label_count = 0;
   return label_count++;
@@ -39,7 +44,8 @@ Variable::Variable(bool is_const) {
   } else {
     this->type = v_var;
   }
-  seq_no = count++; // TODO: scalar and const variable do not need seq_no and declaration
+  seq_no = count++; // TODO: scalar and const variable do not need seq_no and
+                    // declaration
   this->shape = NULL;
   this->declare();
 }
@@ -78,7 +84,7 @@ void Variable::declare() {
   if (!this->checkArray()) {
     emit("var " + this->getName());
   } else {
-    int size = this->getTotalSize();
+    int size = this->sizes->at(0) * this->shape->at(0);
     emit("var " + to_string(size) + " " + this->getName());
   }
 }
@@ -92,13 +98,6 @@ deque<int> *Variable::getSizes() {
     this->sizes->push_front(this->shape->at(i) * this->sizes->front());
   }
   return this->sizes;
-}
-int Variable::getTotalSize() {
-  assert(this->type != v_param);
-  if (this->sizes == NULL) {
-    this->getSizes();
-  }
-  return this->sizes->at(0) * this->shape->at(0);
 }
 
 void Environment::putVar(string name, Variable *var) {
@@ -128,6 +127,16 @@ void Parser::pushEnv(bool is_param) {
 void Parser::popEnv() {
   assert(this->top != NULL);
   this->top = this->top->prev;
+}
+Variable *Parser::registerVar(string name, deque<int> *shape, bool is_const) {
+  Variable *v;
+  if (shape->size() == 0) {
+    v = new Variable(is_const);
+  } else {
+    v = new Variable(is_const, shape);
+  }
+  this->top->putVar(name, v);
+  return v;
 }
 void Parser::putFunc(string name, Function *func) {
   assert(func != NULL);
@@ -163,13 +172,15 @@ void Initializer::initialize(Variable *t, bool is_const) {
   if (this->is_array) { // array
     emit(this->var->getName() + "[" + to_string(this->pos * INT_SIZE) +
          "]=" + t->getName());
-    if (this->var->checkConst()) {
+    if (this->var->checkConst() && is_const) {
       this->var->array_values->at(this->pos) = t->value;
     }
     this->pos++;
   } else { // scalar
-    emit(this->var->getName() + "=" + t->getName());
-    if (this->var->checkConst()) {
+    emit(this->var->getName() + "=" +
+         t->getName()); // TODO scalar const do not emit here after declaration
+                        // canceled
+    if (this->var->checkConst() && is_const) {
       this->var->value = t->value;
     }
   }
@@ -180,7 +191,8 @@ void Initializer::fillZero(bool all_blank) {
   if (all_blank) {
     num = element_num[this->level];
   } else {
-    num = element_num[this->level] - (this->pos) % this->element_num[this->level];
+    num =
+        element_num[this->level] - (this->pos) % this->element_num[this->level];
     if (num == element_num[this->level]) {
       return; // do not need to fill zero.
     }
@@ -192,7 +204,7 @@ void Initializer::fillZero(bool all_blank) {
   Variable *t = new Variable(false);
   emitLabel(begin_label);
   emit(t->getName() + "=" + i->getName() + "<" + to_string(num));
-  emit("if " + t->getName() + "==0 goto l" + to_string(after_label)); 
+  emit("if " + t->getName() + "==0 goto l" + to_string(after_label));
   emit(t->getName() + "=" + to_string(pos) + " + " + i->getName());
   emit(t->getName() + "=" + t->getName() + " * " + to_string(INT_SIZE));
   emit(this->var->getName() + "[" + t->getName() + "]=0");
@@ -202,44 +214,31 @@ void Initializer::fillZero(bool all_blank) {
   pos += num;
 }
 string final_code;
-void output(const string &s) {
-  final_code += s + "\n";
-}
-bool isFuncHeader(const string &s) {
-  return s.substr(0, 2) == "f_";
-}
-bool isVarDefine(const string &s) {
-  return s.substr(0, 4) == "var ";
-}
-bool isFuncEnd(const string &s) {
-  return s.substr(0, 6) == "end f_";
-}
-bool isMain(const string &s) {
-  return s.substr(0, 7) == "f_main ";
-}
+void output(const string &s) { final_code += s + "\n"; }
+bool isFuncHeader(const string &s) { return s.substr(0, 2) == "f_"; }
+bool isVarDefine(const string &s) { return s.substr(0, 4) == "var "; }
+bool isFuncEnd(const string &s) { return s.substr(0, 6) == "end f_"; }
+bool isMain(const string &s) { return s.substr(0, 7) == "f_main "; }
 void postProcess(const deque<string> &codes) {
   bool is_global = true;
   deque<string> global_init;
   for (auto code : codes) {
     if (isFuncHeader(code)) {
       is_global = false;
-    }
-    else if (isFuncEnd(code)) {
+    } else if (isFuncEnd(code)) {
       is_global = true;
-    }
-    else if (is_global && isVarDefine(code)) {
+    } else if (is_global && isVarDefine(code)) {
       output(code);
-    }
-    else if (is_global && !isVarDefine(code)) { // global initilization
+    } else if (is_global && !isVarDefine(code)) { // global initilization
       global_init.push_back(code);
     }
   }
   auto i = codes.begin();
-  while(i != codes.end()) {
+  while (i != codes.end()) {
     if (isFuncHeader(*i)) {
       output(*i);
       auto j = i;
-      while(j != codes.end() && !isFuncEnd(*j)) {
+      while (j != codes.end() && !isFuncEnd(*j)) {
         j++;
       }
       for (auto k = i + 1; k != j; k++) { // local variable define
@@ -261,8 +260,7 @@ void postProcess(const deque<string> &codes) {
       if (j != codes.end()) {
         i = j;
       }
-    }
-    else {
+    } else {
       i++;
     }
   }

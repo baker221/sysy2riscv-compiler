@@ -3,11 +3,11 @@
 #include <deque>
 #include <iostream>
 #include <string>
-#include <unordered_map>
 #include <unistd.h>
+#include <unordered_map>
 extern int yylineno;
-int yylex();
-int yyparse();
+extern int yylex();
+extern int yyparse();
 extern FILE *yyin;
 extern FILE *yyout;
 #define YYSTYPE void *
@@ -24,10 +24,7 @@ enum var_type {
   v_param, // function param
   v_access
 };
-enum func_type {
-  type_int,
-  type_void
-};
+enum func_type { type_int, type_void };
 const int INT_SIZE = 4;
 
 struct Variable {
@@ -39,19 +36,18 @@ struct Variable {
   deque<int> *sizes;
   deque<int> *array_values;
   Variable *array_head; // indicate the head of array, only useful for v_access
-  Variable *offset; // indicate the offset, only useful for v_access
+  Variable *offset;     // indicate the offset, only useful for v_access
   Variable(bool is_const,
            deque<int> *_shape); // construct a var or const variable
-  Variable(bool is_const); // var or const variable and scalar
+  Variable(bool is_const);      // var or const variable and scalar
   Variable(var_type _type, int _no, deque<int> *_shape);
-  Variable(const int _val); // construct a tmp value
+  Variable(const int _val);                     // construct a tmp value
   Variable(Variable *_head, Variable *_offset); // construct a access
   string getName();
   bool checkConst();
   bool checkArray();
   void declare();
-  deque<int> *getSizes();
-  int getTotalSize();
+  deque<int> *getSizes(); // get offset size of each dimension
 };
 
 struct Function {
@@ -91,6 +87,7 @@ struct Parser {
   Parser() { top = new Environment(NULL, false); }
   void pushEnv(bool is_param);
   void popEnv();
+  Variable *registerVar(string name, deque<int> *shape, bool is_const);
   void putFunc(string name, Function *func);
   Function *getFunc(string name);
 };
@@ -101,7 +98,8 @@ struct Initializer {
   deque<int> element_num;
   int level, pos;
   void set(Variable *_var);
-  void initialize(Variable *t, bool is_const); // target and if target is constexp
+  void initialize(Variable *t,
+                  bool is_const); // target and if target is constexp
   void fillZero(bool all_blank = false);
 };
 

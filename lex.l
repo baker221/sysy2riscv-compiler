@@ -21,7 +21,7 @@ identifier [_a-zA-Z]([_a-zA-Z0-9])*
 {space}                            {}
 {newline}                          {}
 {comment1}                         {}
-{comment2}                         {/*printf("comment2 here.\n");*/}
+{comment2}                         {}
 int                                {return INT;}
 const                              {return CONST;}
 void                               {return VOID;}
