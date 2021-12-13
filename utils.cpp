@@ -21,83 +21,83 @@ int genLabel() {
 Variable::Variable(bool is_const, deque<int> *_shape) {
   assert(_shape != NULL);
   if (is_const) {
-    this->type = v_const;
+    type = v_const;
   } else {
-    this->type = v_var;
+    type = v_var;
   }
   seq_no = count++;
-  this->shape = _shape;
-  if (this->checkArray()) {
-    this->sizes = new deque<int>(); // get total sizes
-    this->sizes->push_back(INT_SIZE);
-    for (int i = this->shape->size() - 1; i >= 1; i--) {
-      this->sizes->push_front(this->shape->at(i) * this->sizes->front());
+  shape = _shape;
+  if (_shape != NULL) {
+    sizes = new deque<int>(); // get total sizes
+    sizes->push_back(INT_SIZE);
+    for (int i = shape->size() - 1; i >= 1; i--) {
+      sizes->push_front(shape->at(i) * sizes->front());
     }
-    int total_size = this->sizes->at(0) * this->shape->at(0) / INT_SIZE;
-    this->array_values = new deque<int>(total_size);
+    int total_size = sizes->at(0) * shape->at(0) / INT_SIZE;
+    array_values = new deque<int>(total_size);
   }
-  this->declare();
+  declare();
 }
 Variable::Variable(bool is_const) {
+  shape = NULL;
   if (is_const) {
-    this->type = v_const;
+    type = v_const;
+    seq_no = -1;
   } else {
-    this->type = v_var;
+    type = v_var;
+    seq_no = count++;
+    declare();
   }
-  seq_no = count++; // TODO: scalar and const variable do not need seq_no and
-                    // declaration
-  this->shape = NULL;
-  this->declare();
 }
 Variable::Variable(const int _val) {
-  this->type = v_value;
-  this->value = _val;
+  type = v_value;
+  value = _val;
 }
 Variable::Variable(var_type _type, const int _no, deque<int> *_shape) {
   assert(_type == v_param);
-  this->type = _type;
-  this->seq_no = _no;
-  this->shape = _shape;
+  type = _type;
+  seq_no = _no;
+  shape = _shape;
 }
 Variable::Variable(Variable *_head, Variable *_offset) {
-  this->type = v_access;
-  this->array_head = _head;
-  this->offset = _offset;
-  this->seq_no = -1;
+  type = v_access;
+  array_head = _head;
+  offset = _offset;
+  seq_no = -1;
 }
 bool Variable::checkConst() {
-  return (this->type == v_const || this->type == v_value);
+  return (type == v_const || type == v_value);
 }
-bool Variable::checkArray() { return !(this->shape == NULL); }
+bool Variable::checkArray() { return !(shape == NULL); }
 string Variable::getName() {
-  if (this->type == v_var || this->type == v_const) {
-    return "T" + to_string(this->seq_no);
-  } else if (this->type == v_param) {
-    return "p" + to_string(this->seq_no);
-  } else if (this->type == v_access) {
-    return this->array_head->getName() + "[" + this->offset->getName() + "]";
+  if (type == v_var || type == v_const) {
+    return "T" + to_string(seq_no);
+  } else if (type == v_param) {
+    return "p" + to_string(seq_no);
+  } else if (type == v_access) {
+    return array_head->getName() + "[" + offset->getName() + "]";
   } else {
-    return to_string(this->value);
+    return to_string(value);
   }
 }
 void Variable::declare() {
-  if (!this->checkArray()) {
-    emit("var " + this->getName());
+  if (!checkArray()) {
+    emit("var " + getName());
   } else {
-    int size = this->sizes->at(0) * this->shape->at(0);
-    emit("var " + to_string(size) + " " + this->getName());
+    int size = sizes->at(0) * shape->at(0);
+    emit("var " + to_string(size) + " " + getName());
   }
 }
 deque<int> *Variable::getSizes() {
-  if (this->sizes != NULL) {
-    return this->sizes;
+  if (sizes != NULL) {
+    return sizes;
   }
-  this->sizes = new deque<int>();
-  this->sizes->push_back(INT_SIZE);
-  for (int i = this->shape->size() - 1; i >= 1; i--) {
-    this->sizes->push_front(this->shape->at(i) * this->sizes->front());
+  sizes = new deque<int>();
+  sizes->push_back(INT_SIZE);
+  for (int i = shape->size() - 1; i >= 1; i--) {
+    sizes->push_front(shape->at(i) * sizes->front());
   }
-  return this->sizes;
+  return sizes;
 }
 
 void Environment::putVar(string name, Variable *var) {
@@ -121,12 +121,12 @@ Variable *Environment::getVar(string name) {
 }
 
 void Parser::pushEnv(bool is_param) {
-  Environment *env = new Environment(this->top, is_param);
-  this->top = env;
+  Environment *env = new Environment(top, is_param);
+  top = env;
 }
 void Parser::popEnv() {
-  assert(this->top != NULL);
-  this->top = this->top->prev;
+  assert(top != NULL);
+  top = top->prev;
 }
 Variable *Parser::registerVar(string name, deque<int> *shape, bool is_const) {
   Variable *v;
@@ -135,7 +135,7 @@ Variable *Parser::registerVar(string name, deque<int> *shape, bool is_const) {
   } else {
     v = new Variable(is_const, shape);
   }
-  this->top->putVar(name, v);
+  top->putVar(name, v);
   return v;
 }
 void Parser::putFunc(string name, Function *func) {
@@ -155,33 +155,32 @@ Function *Parser::getFunc(string name) {
 
 void Initializer::set(Variable *_var) {
   assert(_var != NULL);
-  this->var = _var;
-  this->element_num.clear();
-  auto shape = this->var->shape;
-  this->is_array = !(shape == NULL);
-  if (this->is_array) {
-    this->element_num.push_front(shape->back());
+  var = _var;
+  element_num.clear();
+  auto shape = var->shape;
+  is_array = !(shape == NULL);
+  if (is_array) {
+    element_num.push_front(shape->back());
     for (int i = shape->size() - 2; i >= 0; i--) {
-      this->element_num.push_front(shape->at(i) * this->element_num.front());
+      element_num.push_front(shape->at(i) * element_num.front());
     }
   }
-  this->level = -1;
-  this->pos = 0;
+  level = -1;
+  pos = 0;
 }
 void Initializer::initialize(Variable *t, bool is_const) {
-  if (this->is_array) { // array
-    emit(this->var->getName() + "[" + to_string(this->pos * INT_SIZE) +
+  if (is_array) { // array
+    emit(var->getName() + "[" + to_string(pos * INT_SIZE) +
          "]=" + t->getName());
-    if (this->var->checkConst() && is_const) {
-      this->var->array_values->at(this->pos) = t->value;
+    if (var->checkConst() && is_const) {
+      var->array_values->at(pos) = t->value;
     }
-    this->pos++;
+    pos++;
   } else { // scalar
-    emit(this->var->getName() + "=" +
-         t->getName()); // TODO scalar const do not emit here after declaration
-                        // canceled
-    if (this->var->checkConst() && is_const) {
-      this->var->value = t->value;
+    if (var->checkConst() && is_const) {
+      var->value = t->value;
+    } else {
+      emit(var->getName() + "=" + t->getName()); 
     }
   }
 }
@@ -189,11 +188,11 @@ void Initializer::fillZero(bool all_blank) {
   // 将未填满的初始化为0
   int num;
   if (all_blank) {
-    num = element_num[this->level];
+    num = element_num[level];
   } else {
     num =
-        element_num[this->level] - (this->pos) % this->element_num[this->level];
-    if (num == element_num[this->level]) {
+        element_num[level] - (pos) % element_num[level];
+    if (num == element_num[level]) {
       return; // do not need to fill zero.
     }
   }
@@ -207,7 +206,7 @@ void Initializer::fillZero(bool all_blank) {
   emit("if " + t->getName() + "==0 goto l" + to_string(after_label));
   emit(t->getName() + "=" + to_string(pos) + " + " + i->getName());
   emit(t->getName() + "=" + t->getName() + " * " + to_string(INT_SIZE));
-  emit(this->var->getName() + "[" + t->getName() + "]=0");
+  emit(var->getName() + "[" + t->getName() + "]=0");
   emit(i->getName() + "=" + i->getName() + "+1");
   emit("goto l" + to_string(begin_label));
   emitLabel(after_label);
