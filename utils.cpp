@@ -70,13 +70,13 @@ bool Variable::checkConst() {
 }
 bool Variable::checkArray() { return !(shape == NULL); }
 string Variable::getName() {
-  if (type == v_var || type == v_const) {
+  if (type == v_var) {
     return "T" + to_string(seq_no);
   } else if (type == v_param) {
     return "p" + to_string(seq_no);
   } else if (type == v_access) {
     return array_head->getName() + "[" + offset->getName() + "]";
-  } else {
+  } else { // v_const and v_value
     return to_string(value);
   }
 }
