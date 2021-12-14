@@ -65,6 +65,7 @@ Variable::Variable(var_type _type, const int _no, deque<int> *_shape) {
   type = _type;
   seq_no = _no;
   shape = _shape;
+  sizes = NULL;
 }
 Variable::Variable(Variable *_head, Variable *_offset) {
   type = v_access;

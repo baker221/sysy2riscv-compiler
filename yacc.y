@@ -304,7 +304,7 @@ LVal            : IDENT Exps {
                         emit(offset_var->getName() + "= 0");
                         for (int i = 0; i < index->size(); i++) {
                           Variable *t = new Variable(false, true);
-                          emit(t->getName() + " = " + ((Variable *)index->at(i))->getName() + " * " + to_string(sizes->at(i)));
+                          emit(t->getName() + " = " + ((Variable *)(index->at(i)))->getName() + " * " + to_string(sizes->at(i)));
                           emit(offset_var->getName() + " = " + offset_var->getName() + " + " + t->getName());
                           t->releaseCount();
                         }
