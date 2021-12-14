@@ -5,6 +5,7 @@
 #include <string>
 #include <unistd.h>
 #include <unordered_map>
+#include <unordered_set>
 extern int yylineno;
 extern int yylex();
 extern int yyparse();
@@ -29,8 +30,10 @@ const int INT_SIZE = 4;
 
 struct Variable {
   static int count;
+  static unordered_set<int> available_count;
   int seq_no;
   var_type type;
+  bool nameless; // true if it's a nameless tmp scalr var; don't care if not scalar
   int value;
   deque<int> *shape;
   deque<int> *sizes;
@@ -39,7 +42,7 @@ struct Variable {
   Variable *offset;     // indicate the offset, only useful for v_access
   Variable(bool is_const,
            deque<int> *_shape); // construct a var or const variable
-  Variable(bool is_const);      // var or const variable and scalar
+  Variable(bool is_const, bool _nameless);      // var or const variable and scalar
   Variable(var_type _type, int _no, deque<int> *_shape);
   Variable(const int _val);                     // construct a tmp value
   Variable(Variable *_head, Variable *_offset); // construct a access
@@ -48,6 +51,7 @@ struct Variable {
   bool checkArray();
   void declare();
   deque<int> *getSizes(); // get offset size of each dimension
+  void releaseCount();
 };
 
 struct Function {
@@ -102,6 +106,8 @@ struct Initializer {
                   bool is_const); // target and if target is constexp
   void fillZero(bool all_blank = false);
 };
+
+Variable *performOp(Variable *v1, Variable *v2, string op);
 
 extern Parser parser;
 extern Initializer initializer;

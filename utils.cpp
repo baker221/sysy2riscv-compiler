@@ -9,9 +9,6 @@ deque<string> mycode;
 void emit(string s) { mycode.push_back(s); }
 void emitLabel(const int &label_num) {
   emit("l" + to_string(label_num) + ":");
-  if (label_num == 358) {
-    cout << "At line: " << yylineno << endl;
-  }
 }
 int genLabel() {
   static int label_count = 0;
@@ -38,14 +35,24 @@ Variable::Variable(bool is_const, deque<int> *_shape) {
   }
   declare();
 }
-Variable::Variable(bool is_const) {
+Variable::Variable(bool is_const, bool _nameless) {
   shape = NULL;
+  nameless = _nameless;
   if (is_const) {
     type = v_const;
     seq_no = -1;
   } else {
     type = v_var;
-    seq_no = count++;
+    if (nameless) {
+      if (available_count.empty()) {
+        seq_no = count++;
+      } else {
+        seq_no = *available_count.begin();
+        available_count.erase(available_count.begin());
+      }
+    } else {
+      seq_no = count++;
+    }
     declare();
   }
 }
@@ -99,6 +106,10 @@ deque<int> *Variable::getSizes() {
   }
   return sizes;
 }
+void Variable::releaseCount() {
+  assert(nameless == true);
+  available_count.insert(seq_no);
+}
 
 void Environment::putVar(string name, Variable *var) {
   assert(var != NULL);
@@ -116,7 +127,6 @@ Variable *Environment::getVar(string name) {
       env = env->prev;
     }
   }
-  yyerror(("variable " + name + " not defined").c_str());
   return NULL;
 }
 
@@ -131,7 +141,7 @@ void Parser::popEnv() {
 Variable *Parser::registerVar(string name, deque<int> *shape, bool is_const) {
   Variable *v;
   if (shape->size() == 0) {
-    v = new Variable(is_const);
+    v = new Variable(is_const, false);
   } else {
     v = new Variable(is_const, shape);
   }
@@ -198,9 +208,9 @@ void Initializer::fillZero(bool all_blank) {
   }
   int begin_label = genLabel();
   int after_label = genLabel();
-  Variable *i = new Variable(false);
+  Variable *i = new Variable(false, true);
   emit(i->getName() + "=0");
-  Variable *t = new Variable(false);
+  Variable *t = new Variable(false, true);
   emitLabel(begin_label);
   emit(t->getName() + "=" + i->getName() + "<" + to_string(num));
   emit("if " + t->getName() + "==0 goto l" + to_string(after_label));
@@ -211,7 +221,25 @@ void Initializer::fillZero(bool all_blank) {
   emit("goto l" + to_string(begin_label));
   emitLabel(after_label);
   pos += num;
+  i->releaseCount();
+  t->releaseCount();
 }
+
+Variable *performOp(Variable *v1, Variable *v2, string op) {
+  Variable *v = new Variable(false, true);
+  string name1 = v->getName();
+  string name2 = v1->getName();
+  string name3 = v2->getName();
+  emit(name1 + " = " + name2 + " " + op + " " + name3);
+  if (!v1->checkConst() && v1->nameless) {
+    v1->releaseCount();
+  }
+  if (!v2->checkConst() && v2->nameless) {
+    v2->releaseCount();
+  }
+  return v;
+}
+
 string final_code;
 void output(const string &s) { final_code += s + "\n"; }
 bool isFuncHeader(const string &s) { return s.substr(0, 2) == "f_"; }
@@ -240,8 +268,16 @@ void postProcess(const deque<string> &codes) {
       while (j != codes.end() && !isFuncEnd(*j)) {
         j++;
       }
+      unordered_set<int> vars;
       for (auto k = i + 1; k != j; k++) { // local variable define
         if (isVarDefine(*k)) {
+          if ((*k)[4] == 'T') { // scalar
+            string name = (*k).substr(5);
+            if (vars.count(stoi(name))) {
+              continue;
+            }
+            vars.insert(stoi(name));
+          }
           output("\t" + *k);
         }
       }
@@ -250,10 +286,13 @@ void postProcess(const deque<string> &codes) {
           output("\t" + *k);
         }
       }
-      for (auto k = i + 1; k != j; k++) {
+      auto k = i + 1;
+      while (k != j) {
         if (!isVarDefine(*k)) {
+          // TODO remove duplicate return
           output("\t" + *k);
         }
+        k++;
       }
       output(*j);
       if (j != codes.end()) {
@@ -268,6 +307,7 @@ void postProcess(const deque<string> &codes) {
 Parser parser;
 Initializer initializer;
 int Variable::count = 0;
+unordered_set<int> Variable::available_count;
 int main(int argc, char **argv) {
   for (int c; (c = getopt(argc, argv, "Se:o:")) != EOF;) {
     switch (c) {

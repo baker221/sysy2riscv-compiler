@@ -199,7 +199,11 @@ BlockItem       : Decl
                 | Stmt
                 ;
 Stmt            : LVal '=' Exp ';' {
-                    emit(((Variable *)$1)->getName() + " = " + ((Variable *)$3)->getName());
+                    auto v3 = (Variable *)$3;
+                    emit(((Variable *)$1)->getName() + " = " + v3->getName());
+                    if (!v3->checkConst() && v3->nameless) {
+                      v3->releaseCount();
+                    }
                   }
                 | Exp ';'
                 | ';'
@@ -244,7 +248,11 @@ Stmt            : LVal '=' Exp ';' {
                     emit("goto l" + to_string(parser.while_stack.back()->label_begin));
                   }
                 | RETURN Exp ';' {
-                    emit("return " + ((Variable *)$2)->getName());
+                    auto v = (Variable *)$2;
+                    emit("return " + v->getName());
+                    if (!v->checkConst() && v->nameless) {
+                      v->releaseCount();
+                    }
                   }
                 | RETURN ';' {
                     emit("return");
@@ -261,6 +269,9 @@ Cond            : LOrExp { $$ = $1; }
 LVal            : IDENT Exps {
                     string name = *(string *) $1;
                     $$ = parser.top->getVar(name);
+                    if ($$ == NULL) {
+                      yyerror(("variable " + name + " not defined").c_str());
+                    }
                     auto index = (deque<Variable *> *)$2;
                     if (index->size() != 0) {
                       auto sizes = ((Variable *)$$)->getSizes();
@@ -284,33 +295,37 @@ LVal            : IDENT Exps {
                             $$ = new Variable((Variable *)$$, offset_var);
                           }
                         } else {
-                          // cout << "index num less" << endl;
-                          Variable *v = new Variable(false);
+                          Variable *v = new Variable(false, true);
                           emit(v->getName() + " = " + ((Variable *)$$)->getName() + " + " + to_string(offset));
                           $$ = v;
                         }
                       } else { // need to print the process to calculate offset
-                        Variable *offset_var = new Variable(false);
+                        Variable *offset_var = new Variable(false, true);
                         emit(offset_var->getName() + "= 0");
                         for (int i = 0; i < index->size(); i++) {
-                          Variable *t = new Variable(false);
+                          Variable *t = new Variable(false, true);
                           emit(t->getName() + " = " + ((Variable *)index->at(i))->getName() + " * " + to_string(sizes->at(i)));
                           emit(offset_var->getName() + " = " + offset_var->getName() + " + " + t->getName());
+                          t->releaseCount();
                         }
                         if (index->size() == sizes->size()) {
                           $$ = new Variable((Variable *)$$, offset_var);
                         } else {
-                          // cout << "index num less" << endl;
-                          Variable *v = new Variable(false);
+                          Variable *v = new Variable(false, true);
                           emit(v->getName() + " = " + ((Variable *)$$)->getName() + " + " + offset_var->getName());
                           $$ = v;
+                        }
+                      }
+                      for (auto i: *index) {
+                        if (!i->checkConst() && i->nameless) {
+                          i->releaseCount();
                         }
                       }
                     }
                   }
                 ;
 Exps            : Exps '[' Exp ']' {
-                    ((deque<Variable *> *)$1)->push_back((Variable *)$3); // a[i] condition, i can be variable
+                    ((deque<Variable *> *)$1)->push_back((Variable *)$3);
                     $$ = $1;
                   }
                 | { $$ = new deque<Variable *>(); }
@@ -318,8 +333,9 @@ Exps            : Exps '[' Exp ']' {
 PrimaryExp      : '(' Exp ')' { $$ = $2; }
                 | LVal {
                     if (((Variable *)$1)->type == v_access) {
-                      $$ = new Variable(false);
+                      $$ = new Variable(false, true);
                       emit(((Variable *)$$)->getName() + " = " + ((Variable *)$1)->getName());
+                      ((Variable *)$1)->offset->releaseCount();
                     } else {
                       $$ = $1;
                     }
@@ -337,7 +353,7 @@ UnaryExp        : PrimaryExp { $$ = $1; }
                     auto func = parser.getFunc(name);
                     assert(func->param_num == 0);
                     if (func->type == type_int) {
-                      $$ = new Variable(false);
+                      $$ = new Variable(false, true);
                       emit(((Variable *)$$)->getName() + "= call f_" + name);
                     } else if (func->type == type_void) {
                       emit("call f_" + name);
@@ -354,7 +370,7 @@ UnaryExp        : PrimaryExp { $$ = $1; }
                       emit("param " + i->getName());
                     }
                     if (func->type == type_int) {
-                      $$ = new Variable(false);
+                      $$ = new Variable(false, true);
                       emit(((Variable *)$$)->getName() + "= call f_" + name);
                     } else if (func->type == type_void) {
                       emit("call f_" + name);
@@ -367,8 +383,11 @@ UnaryExp        : PrimaryExp { $$ = $1; }
                     if (((Variable *)$2)->checkConst()) {
                       $$ = new Variable(-((Variable *)$2)->value);
                     } else {
-                      $$ = new Variable(false);
+                      $$ = new Variable(false, true);
                       emit(((Variable *)$$)->getName() + "= -" + ((Variable *)$2)->getName());
+                      if (((Variable *)$2)->nameless) {
+                        ((Variable *)$2)->releaseCount();
+                      }
                     }
                   }
                 | '!' UnaryExp {
@@ -379,8 +398,11 @@ UnaryExp        : PrimaryExp { $$ = $1; }
                         $$ = new Variable(0);
                       }
                     } else {
-                      $$ = new Variable(false);
+                      $$ = new Variable(false, true);
                       emit(((Variable *)$$)->getName() + "= !" + ((Variable *)$2)->getName());
+                      if (((Variable *)$2)->nameless) {
+                        ((Variable *)$2)->releaseCount();
+                      }
                     }
                   }
                 ;
@@ -398,24 +420,21 @@ MulExp          : UnaryExp { $$ = $1; }
                     if (((Variable *)$1)->checkConst() && ((Variable *)$3)->checkConst()) {
                       $$ = new Variable(((Variable *)$1)->value * ((Variable *)$3)->value);
                     } else {
-                      $$ = new Variable(false);
-                      emit(((Variable *)$$)->getName() + " = " + ((Variable *)$1)->getName() + " * " + ((Variable *)$3)->getName());
+                      $$ = performOp((Variable *)$1, ((Variable *)$3), "*");
                     }
                   }
                 | MulExp '/' UnaryExp {
                     if (((Variable *)$1)->checkConst() && ((Variable *)$3)->checkConst()) {
                       $$ = new Variable(((Variable *)$1)->value / ((Variable *)$3)->value);
                     } else {
-                      $$ = new Variable(false);
-                      emit(((Variable *)$$)->getName() + " = " + ((Variable *)$1)->getName() + " / " + ((Variable *)$3)->getName());
+                      $$ = performOp((Variable *)$1, ((Variable *)$3), "/");
                     }
                   }
                 | MulExp '%' UnaryExp {
                     if (((Variable *)$1)->checkConst() && ((Variable *)$3)->checkConst()) {
                       $$ = new Variable(((Variable *)$1)->value % ((Variable *)$3)->value);
                     } else {
-                      $$ = new Variable(false);
-                      emit(((Variable *)$$)->getName() + " = " + ((Variable *)$1)->getName() + " % " + ((Variable *)$3)->getName());
+                      $$ = performOp((Variable *)$1, ((Variable *)$3), "%");
                     }
                   }
                 ;
@@ -424,16 +443,14 @@ AddExp          : MulExp { $$ = $1; }
                     if (((Variable *)$1)->checkConst() && ((Variable *)$3)->checkConst()) {
                       $$ = new Variable(((Variable *)$1)->value + ((Variable *)$3)->value);
                     } else {
-                      $$ = new Variable(false);
-                      emit(((Variable *)$$)->getName() + " = " + ((Variable *)$1)->getName() + " + " + ((Variable *)$3)->getName());
+                      $$ = performOp((Variable *)$1, ((Variable *)$3), "+");
                     }
                   }
                 | AddExp '-' MulExp {
                     if (((Variable *)$1)->checkConst() && ((Variable *)$3)->checkConst()) {
                       $$ = new Variable(((Variable *)$1)->value - ((Variable *)$3)->value);
                     } else {
-                      $$ = new Variable(false);
-                      emit(((Variable *)$$)->getName() + " = " + ((Variable *)$1)->getName() + " - " + ((Variable *)$3)->getName());
+                      $$ = performOp((Variable *)$1, ((Variable *)$3), "-");
                     }
                   }
                 ;
@@ -443,8 +460,7 @@ RelExp          : AddExp { $$ = $1; }
                       int t = (int)(((Variable *)$1)->value < ((Variable *)$3)->value);
                       $$ = new Variable(t);
                     } else {
-                      $$ = new Variable(false);
-                      emit(((Variable *)$$)->getName() + " = " + ((Variable *)$1)->getName() + " < " + ((Variable *)$3)->getName());
+                      $$ = performOp((Variable *)$1, ((Variable *)$3), "<");
                     }
                   }
                 | RelExp '>' AddExp {
@@ -452,8 +468,7 @@ RelExp          : AddExp { $$ = $1; }
                       int t = (int)(((Variable *)$1)->value > ((Variable *)$3)->value);
                       $$ = new Variable(t);
                     } else {
-                      $$ = new Variable(false);
-                      emit(((Variable *)$$)->getName() + " = " + ((Variable *)$1)->getName() + " > " + ((Variable *)$3)->getName());
+                      $$ = performOp((Variable *)$1, ((Variable *)$3), ">");
                     }
                   }
                 | RelExp LEQ AddExp {
@@ -461,8 +476,7 @@ RelExp          : AddExp { $$ = $1; }
                       int t = (int)(((Variable *)$1)->value <= ((Variable *)$3)->value);
                       $$ = new Variable(t);
                     } else {
-                      $$ = new Variable(false);
-                      emit(((Variable *)$$)->getName() + " = " + ((Variable *)$1)->getName() + " <= " + ((Variable *)$3)->getName());
+                      $$ = performOp((Variable *)$1, ((Variable *)$3), "<=");
                     }
                   }
                 | RelExp GEQ AddExp {
@@ -470,8 +484,7 @@ RelExp          : AddExp { $$ = $1; }
                       int t = (int)(((Variable *)$1)->value >= ((Variable *)$3)->value);
                       $$ = new Variable(t);
                     } else {
-                      $$ = new Variable(false);
-                      emit(((Variable *)$$)->getName() + " = " + ((Variable *)$1)->getName() + " >= " + ((Variable *)$3)->getName());
+                      $$ = performOp((Variable *)$1, ((Variable *)$3), ">=");
                     }
                   }
                 ;
@@ -481,8 +494,7 @@ EqExp           : RelExp { $$ = $1; }
                       int t = (int)(((Variable *)$1)->value == ((Variable *)$3)->value);
                       $$ = new Variable(t);
                     } else {
-                      $$ = new Variable(false);
-                      emit(((Variable *)$$)->getName() + " = " + ((Variable *)$1)->getName() + " == " + ((Variable *)$3)->getName());
+                      $$ = performOp((Variable *)$1, ((Variable *)$3), "==");
                     }
                   }
                 | EqExp NEQ RelExp {
@@ -490,8 +502,7 @@ EqExp           : RelExp { $$ = $1; }
                       int t = (int)(((Variable *)$1)->value != ((Variable *)$3)->value);
                       $$ = new Variable(t);
                     } else {
-                      $$ = new Variable(false);
-                      emit(((Variable *)$$)->getName() + " = " + ((Variable *)$1)->getName() + " != " + ((Variable *)$3)->getName());
+                      $$ = performOp((Variable *)$1, ((Variable *)$3), "!=");
                     }
                   }
                 ;
