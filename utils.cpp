@@ -209,8 +209,9 @@ void Initializer::fillZero(bool all_blank) {
   int begin_label = genLabel();
   int after_label = genLabel();
   Variable *i = new Variable(false, true);
-  emit(i->getName() + "=0");
   Variable *t = new Variable(false, true);
+  emit("// above two line is duplicate var define");
+  emit(i->getName() + "=0");
   emitLabel(begin_label);
   emit(t->getName() + "=" + i->getName() + "<" + to_string(num));
   emit("if " + t->getName() + "==0 goto l" + to_string(after_label));
@@ -240,8 +241,8 @@ Variable *performOp(Variable *v1, Variable *v2, string op) {
   return v;
 }
 
-string final_code;
-void output(const string &s) { final_code += s + "\n"; }
+deque<string> final_code;
+void output(const string &s) { final_code.push_back(s + "\n"); }
 bool isFuncHeader(const string &s) { return s.substr(0, 2) == "f_"; }
 bool isVarDefine(const string &s) { return s.substr(0, 4) == "var "; }
 bool isFuncEnd(const string &s) { return s.substr(0, 6) == "end f_"; }
@@ -249,7 +250,9 @@ bool isMain(const string &s) { return s.substr(0, 7) == "f_main "; }
 void postProcess(const deque<string> &codes) {
   bool is_global = true;
   deque<string> global_init;
-  for (auto code : codes) {
+  deque<string> fillzero_var_dec;
+  for (int i = 0; i < codes.size(); i++) {
+    auto code = codes[i];
     if (isFuncHeader(code)) {
       is_global = false;
     } else if (isFuncEnd(code)) {
@@ -258,6 +261,12 @@ void postProcess(const deque<string> &codes) {
       output(code);
     } else if (is_global && !isVarDefine(code)) { // global initilization
       global_init.push_back(code);
+    }
+    if (is_global && code.substr(0, 2) == "//") { // dirty trick for global fillzero var
+      fillzero_var_dec.push_back(codes[i - 1]);
+      fillzero_var_dec.push_back(codes[i - 2]);
+      final_code.pop_back();
+      final_code.pop_back();
     }
   }
   auto i = codes.begin();
@@ -269,6 +278,14 @@ void postProcess(const deque<string> &codes) {
         j++;
       }
       unordered_set<int> vars;
+      if (isMain(*i)) {
+        for (auto var_dec: fillzero_var_dec) {
+          string name = var_dec.substr(5);
+          assert(!vars.count(stoi(name)));
+          vars.insert(stoi(name));
+          output("\t" + var_dec);
+        }
+      }
       for (auto k = i + 1; k != j; k++) { // local variable define
         if (isVarDefine(*k)) {
           if ((*k)[4] == 'T') { // scalar
@@ -334,8 +351,12 @@ int main(int argc, char **argv) {
   parser.putFunc("putch", new Function(1, type_void));
   parser.putFunc("putarray", new Function(2, type_void));
   yyparse();
-  final_code = "";
+  final_code.clear();
   postProcess(mycode);
-  fprintf(yyout, "%s", final_code.c_str());
+  string code = "";
+  for (auto &s: final_code) {
+    code += s;
+  }
+  fprintf(yyout, "%s", code.c_str());
   return 0;
 }

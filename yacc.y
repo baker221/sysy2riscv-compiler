@@ -332,10 +332,14 @@ Exps            : Exps '[' Exp ']' {
                 ;
 PrimaryExp      : '(' Exp ')' { $$ = $2; }
                 | LVal {
-                    if (((Variable *)$1)->type == v_access) {
-                      $$ = new Variable(false, true);
-                      emit(((Variable *)$$)->getName() + " = " + ((Variable *)$1)->getName());
-                      ((Variable *)$1)->offset->releaseCount();
+                    auto v1 = (Variable *)$1;
+                    if (v1->type == v_access) {
+                      auto v = new Variable(false, true);
+                      emit(v->getName() + " = " + v1->getName());
+                      if (!v1->offset->checkConst() && v1->offset->nameless) {
+                        v1->offset->releaseCount();
+                      }
+                      $$ = v;
                     } else {
                       $$ = $1;
                     }
