@@ -282,7 +282,9 @@ void postProcess(const deque<string> &codes) {
       if (isMain(*i)) {
         for (auto var_dec: fillzero_var_dec) {
           string name = var_dec.substr(5);
-          assert(!vars.count(stoi(name)));
+          if (vars.count(stoi(name))) {
+            continue;
+          }
           vars.insert(stoi(name));
           output("\t" + var_dec);
         }
