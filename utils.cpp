@@ -182,7 +182,7 @@ void Initializer::set(Variable *_var) {
 void Initializer::initialize(Variable *t, bool is_const) {
   if (is_array) { // array
     emit(var->getName() + "[" + to_string(pos * INT_SIZE) +
-         "]=" + t->getName());
+         "] = " + t->getName());
     if (var->checkConst() && is_const) {
       var->array_values->at(pos) = t->value;
     }
@@ -191,8 +191,11 @@ void Initializer::initialize(Variable *t, bool is_const) {
     if (var->checkConst() && is_const) {
       var->value = t->value;
     } else {
-      emit(var->getName() + "=" + t->getName()); 
+      emit(var->getName() + " = " + t->getName()); 
     }
+  }
+  if (!t->checkConst() && t->nameless) {
+    t->releaseCount();
   }
 }
 void Initializer::fillZero(bool all_blank) {
@@ -212,14 +215,14 @@ void Initializer::fillZero(bool all_blank) {
   Variable *i = new Variable(false, true);
   Variable *t = new Variable(false, true);
   emit("// above two line is duplicate var define");
-  emit(i->getName() + "=0");
+  emit(i->getName() + " = 0");
   emitLabel(begin_label);
-  emit(t->getName() + "=" + i->getName() + "<" + to_string(num));
-  emit("if " + t->getName() + "==0 goto l" + to_string(after_label));
-  emit(t->getName() + "=" + to_string(pos) + " + " + i->getName());
-  emit(t->getName() + "=" + t->getName() + " * " + to_string(INT_SIZE));
-  emit(var->getName() + "[" + t->getName() + "]=0");
-  emit(i->getName() + "=" + i->getName() + "+1");
+  emit(t->getName() + " = " + i->getName() + " < " + to_string(num));
+  emit("if " + t->getName() + " == 0 goto l" + to_string(after_label));
+  emit(t->getName() + " = " + to_string(pos) + " + " + i->getName());
+  emit(t->getName() + " = " + t->getName() + " * " + to_string(INT_SIZE));
+  emit(var->getName() + "[" + t->getName() + "] = 0");
+  emit(i->getName() + " = " + i->getName() + " + 1");
   emit("goto l" + to_string(begin_label));
   emitLabel(after_label);
   pos += num;
@@ -286,7 +289,7 @@ void postProcess(const deque<string> &codes) {
             continue;
           }
           vars.insert(stoi(name));
-          output("\t" + var_dec);
+          output(var_dec);
         }
       }
       for (auto k = i + 1; k != j; k++) { // local variable define
@@ -298,21 +301,21 @@ void postProcess(const deque<string> &codes) {
             }
             vars.insert(stoi(name));
           }
-          output("\t" + *k);
+          output(*k);
         }
       }
       if (isMain(*i)) {
         for (auto k = global_init.begin(); k != global_init.end(); k++) {
-          output("\t" + *k);
+          output(*k);
         }
       }
-      auto k = i + 1;
-      while (k != j) {
+      for (auto k = i + 1; k != j; k++) {
         if (!isVarDefine(*k)) {
-          // TODO remove duplicate return
-          output("\t" + *k);
+          if ((*k).substr(0, 6) == "return" && final_code.back().substr(0, 6) == "return") {
+            continue;
+          }
+          output(*k);
         }
-        k++;
       }
       output(*j);
       if (j != codes.end()) {

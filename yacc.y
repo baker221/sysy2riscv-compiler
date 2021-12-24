@@ -66,7 +66,7 @@ VarDef          : IDENT ConstExps { // var variables
                     $$ = parser.registerVar(*(string *)$1, shape, false);
                     if (parser.top->prev == NULL) { // global variable, init to 0
                       if (shape->size() == 0) {
-                        emit(((Variable *)$$)->getName() + "= 0");
+                        emit(((Variable *)$$)->getName() + " = 0");
                       } else {
                         initializer.set((Variable *)$$);
                         initializer.level++;
@@ -301,7 +301,7 @@ LVal            : IDENT Exps {
                         }
                       } else { // need to print the process to calculate offset
                         Variable *offset_var = new Variable(false, true);
-                        emit(offset_var->getName() + "= 0");
+                        emit(offset_var->getName() + " = 0");
                         for (int i = 0; i < index->size(); i++) {
                           Variable *t = new Variable(false, true);
                           emit(t->getName() + " = " + ((Variable *)(index->at(i)))->getName() + " * " + to_string(sizes->at(i)));
@@ -352,17 +352,24 @@ Number          : INT_CONST {
                 ;
 UnaryExp        : PrimaryExp { $$ = $1; }
                 | IDENT '(' ')' {
-                    // TODO starttime and stoptime
                     string name = *(string *) $1;
-                    auto func = parser.getFunc(name);
-                    assert(func->param_num == 0);
-                    if (func->type == type_int) {
-                      $$ = new Variable(false, true);
-                      emit(((Variable *)$$)->getName() + "= call f_" + name);
-                    } else if (func->type == type_void) {
-                      emit("call f_" + name);
+                    if (name == "starttime") {
+                      emit("param " + to_string(yylineno));
+                      emit("call f__sysy_starttime");
+                    } else if (name == "stoptime") {
+                      emit("param " + to_string(yylineno));
+                      emit("call f__sysy_stoptime");
                     } else {
-                      yyerror("Wrong function type");
+                      auto func = parser.getFunc(name);
+                      assert(func->param_num == 0);
+                      if (func->type == type_int) {
+                        $$ = new Variable(false, true);
+                        emit(((Variable *)$$)->getName() + " = call f_" + name);
+                      } else if (func->type == type_void) {
+                        emit("call f_" + name);
+                      } else {
+                        yyerror("Wrong function type");
+                      }
                     }
                   }
                 | IDENT '(' FuncRParams ')' {
@@ -375,7 +382,7 @@ UnaryExp        : PrimaryExp { $$ = $1; }
                     }
                     if (func->type == type_int) {
                       $$ = new Variable(false, true);
-                      emit(((Variable *)$$)->getName() + "= call f_" + name);
+                      emit(((Variable *)$$)->getName() + " = call f_" + name);
                     } else if (func->type == type_void) {
                       emit("call f_" + name);
                     } else {
@@ -388,7 +395,7 @@ UnaryExp        : PrimaryExp { $$ = $1; }
                       $$ = new Variable(-((Variable *)$2)->value);
                     } else {
                       $$ = new Variable(false, true);
-                      emit(((Variable *)$$)->getName() + "= -" + ((Variable *)$2)->getName());
+                      emit(((Variable *)$$)->getName() + " = -" + ((Variable *)$2)->getName());
                       if (((Variable *)$2)->nameless) {
                         ((Variable *)$2)->releaseCount();
                       }
@@ -403,7 +410,7 @@ UnaryExp        : PrimaryExp { $$ = $1; }
                       }
                     } else {
                       $$ = new Variable(false, true);
-                      emit(((Variable *)$$)->getName() + "= !" + ((Variable *)$2)->getName());
+                      emit(((Variable *)$$)->getName() + " = !" + ((Variable *)$2)->getName());
                       if (((Variable *)$2)->nameless) {
                         ((Variable *)$2)->releaseCount();
                       }
@@ -513,11 +520,19 @@ EqExp           : RelExp { $$ = $1; }
 LAndExp         : EqExp {
                     int cur_label_num = genLabel();
                     $$ = new int(cur_label_num); // For And expression, store false label here.
-                    emit("if " + ((Variable *)$1)->getName() + " == 0 goto l" + to_string(cur_label_num));
+                    auto v = (Variable *)$1;
+                    emit("if " + v->getName() + " == 0 goto l" + to_string(cur_label_num));
+                    if (!v->checkConst() && v->nameless) {
+                      v->releaseCount();
+                    }
                   }
                 | LAndExp AND EqExp {
                     $$ = $1;
-                    emit("if " + ((Variable *)$3)->getName() + " == 0 goto l" + to_string(*(int *)$$));
+                    auto v = (Variable *)$3;
+                    emit("if " + v->getName() + " == 0 goto l" + to_string(*(int *)$$));
+                    if (!v->checkConst() && v->nameless) {
+                      v->releaseCount();
+                    }
                   }
                 ;
 LOrExp          : LAndExp {
