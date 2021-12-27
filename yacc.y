@@ -395,7 +395,7 @@ UnaryExp        : PrimaryExp { $$ = $1; }
                       $$ = new Variable(-((Variable *)$2)->value);
                     } else {
                       $$ = new Variable(false, true);
-                      emit(((Variable *)$$)->getName() + " = -" + ((Variable *)$2)->getName());
+                      emit(((Variable *)$$)->getName() + " = - " + ((Variable *)$2)->getName());
                       if (((Variable *)$2)->nameless) {
                         ((Variable *)$2)->releaseCount();
                       }
@@ -410,7 +410,7 @@ UnaryExp        : PrimaryExp { $$ = $1; }
                       }
                     } else {
                       $$ = new Variable(false, true);
-                      emit(((Variable *)$$)->getName() + " = !" + ((Variable *)$2)->getName());
+                      emit(((Variable *)$$)->getName() + " = ! " + ((Variable *)$2)->getName());
                       if (((Variable *)$2)->nameless) {
                         ((Variable *)$2)->releaseCount();
                       }

@@ -1,4 +1,5 @@
 #include "utils.hpp"
+#include "tiggerutils.hpp"
 
 void yyerror(const char *msg) {
   cerr << "Error at line " << yylineno << ",\t" << msg << endl;
@@ -6,10 +7,9 @@ void yyerror(const char *msg) {
 }
 
 deque<string> mycode;
+deque<string> eeyore_code;
 void emit(string s) { mycode.push_back(s); }
-void emitLabel(const int &label_num) {
-  emit("l" + to_string(label_num) + ":");
-}
+void emitLabel(const int &label_num) { emit("l" + to_string(label_num) + ":"); }
 int genLabel() {
   static int label_count = 0;
   return label_count++;
@@ -73,9 +73,7 @@ Variable::Variable(Variable *_head, Variable *_offset) {
   offset = _offset;
   seq_no = -1;
 }
-bool Variable::checkConst() {
-  return (type == v_const || type == v_value);
-}
+bool Variable::checkConst() { return (type == v_const || type == v_value); }
 bool Variable::checkArray() { return !(shape == NULL); }
 string Variable::getName() {
   if (type == v_var || (type == v_const && checkArray())) {
@@ -191,7 +189,7 @@ void Initializer::initialize(Variable *t, bool is_const) {
     if (var->checkConst() && is_const) {
       var->value = t->value;
     } else {
-      emit(var->getName() + " = " + t->getName()); 
+      emit(var->getName() + " = " + t->getName());
     }
   }
   if (!t->checkConst() && t->nameless) {
@@ -204,8 +202,7 @@ void Initializer::fillZero(bool all_blank) {
   if (all_blank) {
     num = element_num[level];
   } else {
-    num =
-        element_num[level] - (pos) % element_num[level];
+    num = element_num[level] - (pos) % element_num[level];
     if (num == element_num[level]) {
       return; // do not need to fill zero.
     }
@@ -245,13 +242,12 @@ Variable *performOp(Variable *v1, Variable *v2, string op) {
   return v;
 }
 
-deque<string> final_code;
-void output(const string &s) { final_code.push_back(s + "\n"); }
+void output(const string &s) { eeyore_code.push_back(s); }
 bool isFuncHeader(const string &s) { return s.substr(0, 2) == "f_"; }
 bool isVarDefine(const string &s) { return s.substr(0, 4) == "var "; }
 bool isFuncEnd(const string &s) { return s.substr(0, 6) == "end f_"; }
 bool isMain(const string &s) { return s.substr(0, 7) == "f_main "; }
-void postProcess(const deque<string> &codes) {
+void toEeyore(const deque<string> &codes) {
   bool is_global = true;
   deque<string> global_init;
   deque<string> fillzero_var_dec;
@@ -264,13 +260,15 @@ void postProcess(const deque<string> &codes) {
     } else if (is_global && isVarDefine(code)) {
       output(code);
     } else if (is_global && !isVarDefine(code)) { // global initilization
-      global_init.push_back(code);
+      global_init.push_back(code); // TODO 全局变量初始化不必放在main函数里，可以直接初始化
+      // BUT 这样处理过后可以保证tigger和riscv的赋值只在函数中
     }
-    if (is_global && code.substr(0, 2) == "//") { // dirty trick for global fillzero var
+    if (is_global &&
+        code.substr(0, 2) == "//") { // dirty trick for global fillzero var
       fillzero_var_dec.push_back(codes[i - 1]);
       fillzero_var_dec.push_back(codes[i - 2]);
-      final_code.pop_back();
-      final_code.pop_back();
+      eeyore_code.pop_back();
+      eeyore_code.pop_back();
     }
   }
   auto i = codes.begin();
@@ -283,7 +281,7 @@ void postProcess(const deque<string> &codes) {
       }
       unordered_set<int> vars;
       if (isMain(*i)) {
-        for (auto var_dec: fillzero_var_dec) {
+        for (auto var_dec : fillzero_var_dec) {
           string name = var_dec.substr(5);
           if (vars.count(stoi(name))) {
             continue;
@@ -311,7 +309,8 @@ void postProcess(const deque<string> &codes) {
       }
       for (auto k = i + 1; k != j; k++) {
         if (!isVarDefine(*k)) {
-          if ((*k).substr(0, 6) == "return" && final_code.back().substr(0, 6) == "return") {
+          if ((*k).substr(0, 6) == "return" &&
+              eeyore_code.back().substr(0, 6) == "return") {
             continue;
           }
           output(*k);
@@ -357,11 +356,26 @@ int main(int argc, char **argv) {
   parser.putFunc("putch", new Function(1, type_void));
   parser.putFunc("putarray", new Function(2, type_void));
   yyparse();
-  final_code.clear();
-  postProcess(mycode);
+  int mode = 2; // 1: to eeyore, 2: to tigger, 3: to riscv
+  deque<string> tigger_code;
+  deque<string> riscv_code;
+  if (mode >= 1) {
+    eeyore_code.clear();
+    toEeyore(mycode);
+  }
+  if (mode >= 2) {
+    tigger_code = toTigger(eeyore_code);
+  }
+  if (mode >= 3) {}
   string code = "";
-  for (auto &s: final_code) {
-    code += s;
+  if (mode == 1) {
+    for (auto &s : eeyore_code) {
+      code += s + "\n";
+    }
+  } else if (mode == 2) {
+    for (auto &s : tigger_code) {
+      code += s + "\n";
+    }
   }
   fprintf(yyout, "%s", code.c_str());
   return 0;
