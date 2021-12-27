@@ -8,7 +8,7 @@ void flush() {
   }
   buffer.clear();
 }
-void emit(const string &code) { buffer.push_back(code); }
+void toBuffer(const string &code) { buffer.push_back(code); }
 
 const int n_registers = 28;
 const string registers[n_registers] = {
@@ -111,13 +111,13 @@ string varLoad(const string &name) { // load a var from stack to register
   Var *var = varFind(name);
   bindReg(var);
   if (var->is_array) {
-    emit("loadaddr " + var->addr + " " + var->reg);
+    toBuffer("loadaddr " + var->addr + " " + var->reg);
   } else if (var->is_num) {
-    emit(var->reg + " = " + var->name);
+    toBuffer(var->reg + " = " + var->name);
   } else if (var->is_global) {
-    emit("load " + var->name + " " + var->reg);
+    toBuffer("load " + var->name + " " + var->reg);
   } else {
-    emit("load " + var->addr + " " + var->reg);
+    toBuffer("load " + var->addr + " " + var->reg);
   }
   var->dirty = false;
   return var->reg;
@@ -128,10 +128,10 @@ void varSave(const string &name) {
   if (var->reg == "" || !var->dirty || var->is_num || var->is_array) {
   } else if (var->is_global) {
     string reg = "t0";
-    emit("loadaddr " + var->name + " " + reg);
-    emit(reg + "[0] = " + var->reg);
+    toBuffer("loadaddr " + var->name + " " + reg);
+    toBuffer(reg + "[0] = " + var->reg);
   } else {
-    emit("store " + var->reg + " " + var->addr);
+    toBuffer("store " + var->reg + " " + var->addr);
   }
   unbindReg(var);
 }
@@ -142,7 +142,7 @@ void decl(string sym) { // var sym
   if (cur_func == "global") {
     string name = "v" + to_string(global_var_count++);
     var_table["global"][sym] = new Var(name, name, true, false, false);
-    emit(name + " = 0");
+    toBuffer(name + " = 0");
   } else {
     var_table[cur_func][sym] =
         new Var(sym, local_var_count++, false, false, false);
@@ -153,7 +153,7 @@ void decl(string sym, string num) { // var num sym
   if (cur_func == "global") {
     string name = "v" + to_string(global_var_count++);
     var_table["global"][sym] = new Var(name, name, true, true, false);
-    emit(name + " = malloc " + num);
+    toBuffer(name + " = malloc " + num);
   } else {
     var_table[cur_func][sym] =
         new Var(sym, local_var_count, false, true, false);
@@ -167,7 +167,7 @@ void funcHeader(string func_name, string num) { // func [num]
   var_table[cur_func] = VarMap();
   local_var_count = stoi(num);
   param_count = 0;
-  emit(func_name + " [" + num + "]");
+  toBuffer(func_name + " [" + num + "]");
   for (int i = 0; i < local_var_count; i++) {
     string sym = "p" + to_string(i);
     string reg = "a" + to_string(i);
@@ -180,7 +180,7 @@ void funcHeader(string func_name, string num) { // func [num]
 
 void funcEnd(string func_name) {
   buffer[0] += (" [" + to_string(local_var_count) + "]");
-  emit("end " + func_name);
+  toBuffer("end " + func_name);
   flush();
   cur_func = "global";
 }
@@ -188,7 +188,7 @@ void funcEnd(string func_name) {
 void ifStmt(string val1, string op, string val2, string label) {
   string reg1 = varLoad(val1);
   string reg2 = varLoad(val2);
-  emit("if " + reg1 + " " + op + " " + reg2 + " goto " + label);
+  toBuffer("if " + reg1 + " " + op + " " + reg2 + " goto " + label);
   varSave(val1);
   varSave(val2);
 }
@@ -201,7 +201,7 @@ void paramDec(string val) {
     exit(1);
   }
   string reg2 = varLoad(val);
-  emit(reg + " = " + reg2);
+  toBuffer(reg + " = " + reg2);
   varSave(val);
 }
 
@@ -213,8 +213,8 @@ void returnStmt(string val) {
     exit(2);
   }
   string reg2 = varLoad(val);
-  emit(reg + " = " + reg2);
-  emit("return");
+  toBuffer(reg + " = " + reg2);
+  toBuffer("return");
   freeReg("a0");
   varSave(val);
 }
@@ -223,7 +223,7 @@ void callFunc(string func_name) {
   for (int i = 0; i < param_count; i++) {
     freeReg("a" + to_string(i));
   }
-  emit("call " + func_name);
+  toBuffer("call " + func_name);
   param_count = 0;
 }
 
@@ -231,10 +231,10 @@ void callFunc(string func_name, string sym) {
   for (int i = 1; i < param_count; i++) {
     freeReg("a" + to_string(i));
   }
-  emit("call " + func_name);
+  toBuffer("call " + func_name);
   param_count = 0;
   string reg = varLoad(sym);
-  emit(reg + " = a0");
+  toBuffer(reg + " = a0");
   freeReg("a0");
   varSetDirty(sym);
   varSave(sym);
@@ -243,7 +243,7 @@ void callFunc(string func_name, string sym) {
 void assignStmt(string sym, string val) {
   string reg1 = varLoad(sym);
   string reg2 = varLoad(val);
-  emit(reg1 + " = " + reg2);
+  toBuffer(reg1 + " = " + reg2);
   varSetDirty(sym);
   varSave(sym);
   varSave(val);
@@ -252,7 +252,7 @@ void assignStmt(string sym, string val) {
 void assignStmt(string sym, string val, string sinop) {
   string reg1 = varLoad(sym);
   string reg2 = varLoad(val);
-  emit(reg1 + " = " + sinop + " " + reg2);
+  toBuffer(reg1 + " = " + sinop + " " + reg2);
   varSetDirty(sym);
   varSave(sym);
   varSave(val);
@@ -261,22 +261,22 @@ void assignStmt(string sym, string val, string sinop) {
 void arrayAssign(string sym, string val1, string val2) {
   string reg1 = varLoad(sym);
   string reg2 = varLoad(val1);
-  emit("t0 = " + reg1 + " + " + reg2);
+  toBuffer("t0 = " + reg1 + " + " + reg2);
   varSave(sym);
   varSave(val1);
   string reg3 = varLoad(val2);
-  emit("t0[0] = " + reg3);
+  toBuffer("t0[0] = " + reg3);
   varSave(val2);
 }
 
 void assignArray(string sym1, string sym2, string val) {
   string reg2 = varLoad(sym2);
   string reg3 = varLoad(val);
-  emit("t0 = " + reg2 + " + " + reg3);
+  toBuffer("t0 = " + reg2 + " + " + reg3);
   varSave(sym2);
   varSave(val);
   string reg1 = varLoad(sym1);
-  emit(reg1 + " = t0[0]");
+  toBuffer(reg1 + " = t0[0]");
   varSetDirty(sym1);
   varSave(sym1);
 }
@@ -285,7 +285,7 @@ void binOpCal(string sym, string val1, string val2, string op) {
   string reg1 = varLoad(sym);
   string reg2 = varLoad(val1);
   string reg3 = varLoad(val2);
-  emit(reg1 + " = " + reg2 + " " + op + " " + reg3);
+  toBuffer(reg1 + " = " + reg2 + " " + op + " " + reg3);
   varSetDirty(sym);
   varSave(sym);
   varSave(val1);
@@ -312,9 +312,9 @@ deque<string> toTigger(const deque<string> &codes) {
     } else if (code[0] == "end") { // func def end
       funcEnd(code[1]);
     } else if (code[0] == "goto") { // goto label
-      emit(code[0] + " " + code[1]);
+      toBuffer(code[0] + " " + code[1]);
     } else if (code[0][0] == 'l') { // label:
-      emit(code[0]);
+      toBuffer(code[0]);
     } else if (code[0] == "if") { // if a op b goto label
       ifStmt(code[1], code[2], code[3], code[5]);
     } else if (code[0] == "param") { // param val
@@ -323,7 +323,7 @@ deque<string> toTigger(const deque<string> &codes) {
       if (code.size() > 1) { // return val
         returnStmt(code[1]);
       } else { // return
-        emit("return");
+        toBuffer("return");
       }
     } else if (code[0] == "call") { // call func
       callFunc(code[1]);

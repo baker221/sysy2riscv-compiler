@@ -2,8 +2,8 @@ BUILD_DIR ?= $(shell pwd)
 CCFLAGS=-DDEBUG -Wall -g
 #CCFLAGS=-DDEBUG -w -g
 
-$(BUILD_DIR)/compiler: lex.yy.o yacc.tab.o tiggerutils.o utils.o
-	g++ -Wno-register -O2 -lm -std=c++17 lex.yy.o yacc.tab.o tiggerutils.o utils.o -o $(BUILD_DIR)/compiler -Idirs ${CCFLAGS}
+$(BUILD_DIR)/compiler: lex.yy.o yacc.tab.o tiggerutils.o riscvutils.o utils.o
+	g++ -Wno-register -O2 -lm -std=c++17 lex.yy.o yacc.tab.o tiggerutils.o riscvutils.o utils.o -o $(BUILD_DIR)/compiler -Idirs ${CCFLAGS}
 
 lex.yy.cpp: lex.l utils.hpp
 	flex -o lex.yy.cpp lex.l
@@ -20,7 +20,10 @@ yacc.tab.o: utils.hpp yacc.tab.hpp
 tiggerutils.o: tiggerutils.hpp
 	g++ -Wno-register -O2 -lm -std=c++17 tiggerutils.cpp -c -Idirs ${CCFLAGS}
 
-utils.o: utils.hpp tiggerutils.hpp utils.cpp
+riscvutils.o: riscvutils.hpp
+	g++ -Wno-register -O2 -lm -std=c++17 riscvutils.cpp -c -Idirs ${CCFLAGS}
+
+utils.o: utils.hpp tiggerutils.hpp riscvutils.hpp utils.cpp
 	g++ -Wno-register -O2 -lm -std=c++17 utils.cpp -c -Idirs ${CCFLAGS}
 
 clean:

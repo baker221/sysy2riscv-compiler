@@ -1,5 +1,6 @@
 #include "utils.hpp"
 #include "tiggerutils.hpp"
+#include "riscvutils.hpp"
 
 void yyerror(const char *msg) {
   cerr << "Error at line " << yylineno << ",\t" << msg << endl;
@@ -331,11 +332,9 @@ Initializer initializer;
 int Variable::count = 0;
 unordered_set<int> Variable::available_count;
 int main(int argc, char **argv) {
-  for (int c; (c = getopt(argc, argv, "St:o:")) != EOF;) {
+  for (int c; (c = getopt(argc, argv, "S:o:")) != EOF;) {
     switch (c) {
     case 'S':
-      break;
-    case 't':
       yyin = fopen(optarg, "r");
       break;
     case 'o':
@@ -356,7 +355,7 @@ int main(int argc, char **argv) {
   parser.putFunc("putch", new Function(1, type_void));
   parser.putFunc("putarray", new Function(2, type_void));
   yyparse();
-  int mode = 2; // 1: to eeyore, 2: to tigger, 3: to riscv
+  int mode = 3; // 1: to eeyore, 2: to tigger, 3: to riscv
   deque<string> tigger_code;
   deque<string> riscv_code;
   if (mode >= 1) {
@@ -366,7 +365,9 @@ int main(int argc, char **argv) {
   if (mode >= 2) {
     tigger_code = toTigger(eeyore_code);
   }
-  if (mode >= 3) {}
+  if (mode >= 3) {
+    riscv_code = toRiscv(tigger_code);
+  }
   string code = "";
   if (mode == 1) {
     for (auto &s : eeyore_code) {
@@ -374,6 +375,10 @@ int main(int argc, char **argv) {
     }
   } else if (mode == 2) {
     for (auto &s : tigger_code) {
+      code += s + "\n";
+    }
+  } else {
+    for (auto &s : riscv_code) {
       code += s + "\n";
     }
   }
