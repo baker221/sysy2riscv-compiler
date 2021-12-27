@@ -5,7 +5,6 @@
 #include <unordered_map>
 #include <cstring>
 using namespace std;
-extern deque<string> tigger_code;
 
 struct Var {
   string name;

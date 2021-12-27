@@ -330,7 +330,7 @@ deque<string> toTigger(const deque<string> &codes) {
     } else if (code[2] == "call") { // sym = call func
       callFunc(code[3], code[0]);
     } else if (code[2] == "-" || code[2] == "!") {// sym = sinop val
-      assignStmt(code[0], code[2], code[3]);
+      assignStmt(code[0], code[3], code[2]);
     } else if (code[0].back() == ']') { //sym[val] = val
       auto t = split(code[0], "[");
       arrayAssign(t[0], t[1].substr(0, t[1].size() - 1), code[2]);
