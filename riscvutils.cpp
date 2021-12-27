@@ -39,8 +39,8 @@ void functionHeader(string func, string int1, string int2) {
   if (isInt12(-stk)) {
     emit("addi sp, sp, " + to_string(-stk));
   } else {
-    emit("li t0, " + to_string(-stk));
-    emit("add sp, sp, t0");
+    emit("li s0, " + to_string(-stk));
+    emit("add sp, sp, s0");
   }
 }
 
@@ -48,8 +48,8 @@ void returnStmt() {
   if (isInt12(stk)) {
     emit("addi sp, sp, " + to_string(stk));
   } else {
-    emit("li t0, " + to_string(stk));
-    emit("add sp, sp, t0");
+    emit("li s0, " + to_string(stk));
+    emit("add sp, sp, s0");
   }
   emit("lw ra, -4(sp)");
   emit("ret");
@@ -75,9 +75,9 @@ void storeStmt(string reg, string num) {
   if (isInt12(offset)) {
     emit("sw " + reg + ", " + to_string(offset) + "(sp)");
   } else {
-    emit("li t0, " + to_string(offset));
-    emit("add t0, t0, sp");
-    emit("sw " + reg + ", 0(t0)");
+    emit("li s0, " + to_string(offset));
+    emit("add s0, s0, sp");
+    emit("sw " + reg + ", 0(s0)");
   }
 }
 
@@ -86,9 +86,9 @@ void loadNum(string num, string reg) {
   if (isInt12(offset)) {
     emit("lw " + reg + ", " + to_string(offset) + "(sp)");
   } else {
-    emit("li t0, " + to_string(offset));
-    emit("add t0, t0, sp");
-    emit("lw " + reg + ", 0(t0)");
+    emit("li s0, " + to_string(offset));
+    emit("add s0, s0, sp");
+    emit("lw " + reg + ", 0(s0)");
   }
 }
 
@@ -97,8 +97,8 @@ void loadAddrNum(string num, string reg) {
   if (isInt12(offset)) {
     emit("addi " + reg + ", sp, " + to_string(offset));
   } else {
-    emit("li t0, " + to_string(offset));
-    emit("add " + reg + ", sp, t0");
+    emit("li s0, " + to_string(offset));
+    emit("add " + reg + ", sp, s0");
   }
 }
 
@@ -147,8 +147,8 @@ void binOp(string reg1, string reg2, string reg3, string op) {
     emit("seqz " + reg1 + ", " + reg1);
   } else if (op == "&&") {
     emit("snez " + reg1 + ", " + reg2);
-    emit("snez t0, " + reg3);
-    emit("and " + reg1 + ", " + reg1 + ", t0");
+    emit("snez s0, " + reg3);
+    emit("and " + reg1 + ", " + reg1 + ", s0");
   } else if (op == "||") {
     emit("or " + reg1 + ", " + reg2 + ", " + reg3);
     emit("snez " + reg1 + ", " + reg1);

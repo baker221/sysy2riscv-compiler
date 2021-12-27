@@ -67,6 +67,7 @@ void init() {
   }
   register_used["x0"] = true;
   register_used["t0"] = true; // use t0 as tmp register
+  register_used["s0"] = true; // store for tigger2riscv2 tmp reg
   cur_func = "global";
   var_table["global"] = VarMap();
   var_table["number"] = VarMap(); // 不储存常数创建的变量的话，无法正确释放寄存器
