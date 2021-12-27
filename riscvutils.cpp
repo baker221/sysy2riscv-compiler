@@ -35,13 +35,23 @@ void functionHeader(string func, string int1, string int2) {
   emit(".type " + func + ", @function");
   emit(func + ":");
   stk = (stoi(int2) / 4 + 1) * 16;
-  emit("addi sp, sp, -" + to_string(stk));
-  emit("sw ra, " + to_string(stk) + "-4(sp)");
+  emit("sw ra, -4(sp)");
+  if (isInt12(-stk)) {
+    emit("addi sp, sp, " + to_string(-stk));
+  } else {
+    emit("li t0, " + to_string(-stk));
+    emit("add sp, sp, t0");
+  }
 }
 
 void returnStmt() {
-  emit("lw ra, " + to_string(stk) + "-4(sp)");
-  emit("addi sp, sp, " + to_string(stk));
+  if (isInt12(stk)) {
+    emit("addi sp, sp, " + to_string(stk));
+  } else {
+    emit("li t0, " + to_string(stk));
+    emit("add sp, sp, t0");
+  }
+  emit("lw ra, -4(sp)");
   emit("ret");
 }
 
