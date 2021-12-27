@@ -331,11 +331,11 @@ Initializer initializer;
 int Variable::count = 0;
 unordered_set<int> Variable::available_count;
 int main(int argc, char **argv) {
-  for (int c; (c = getopt(argc, argv, "Se:o:")) != EOF;) {
+  for (int c; (c = getopt(argc, argv, "St:o:")) != EOF;) {
     switch (c) {
     case 'S':
       break;
-    case 'e':
+    case 't':
       yyin = fopen(optarg, "r");
       break;
     case 'o':
